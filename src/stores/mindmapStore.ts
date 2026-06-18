@@ -8,7 +8,11 @@ import {
   type XYPosition,
 } from '@xyflow/react'
 import { create } from 'zustand'
-import { loadMindMapSnapshot, saveMindMapSnapshot } from '../api/documentApi'
+import {
+  loadCachedMindMapSnapshot,
+  loadMindMapSnapshot,
+  saveMindMapSnapshot,
+} from '../api/documentApi'
 import type {
   DocumentId,
   MarkdownDocument,
@@ -104,6 +108,7 @@ const initialSnapshot: MindMapSnapshot = {
 
 type MindMapState = MindMapSnapshot & {
   copiedNodeIds: string[]
+  hydrateSnapshot: () => Promise<void>
   isDocumentModalOpen: boolean
   selectedDocument: MarkdownDocument | null
   addNode: () => void
@@ -157,12 +162,23 @@ function normalizeSnapshot(snapshot: MindMapSnapshot): MindMapSnapshot {
   }
 }
 
-const bootSnapshot = normalizeSnapshot(loadMindMapSnapshot() ?? initialSnapshot)
+const bootSnapshot = normalizeSnapshot(loadCachedMindMapSnapshot() ?? initialSnapshot)
 
 export const useMindMapStore = create<MindMapState>((set, get) => ({
   ...withSelectedDocument(bootSnapshot),
   copiedNodeIds: [],
   isDocumentModalOpen: false,
+
+  hydrateSnapshot: async () => {
+    const snapshot = await loadMindMapSnapshot()
+
+    if (snapshot) {
+      set((state) => ({
+        ...state,
+        ...withSelectedDocument(normalizeSnapshot(snapshot)),
+      }))
+    }
+  },
 
   addNode: () => {
     const index = get().nodes.length + 1

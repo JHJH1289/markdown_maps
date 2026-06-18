@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Panel } from '@xyflow/react'
 import { DocumentModal } from '../components/DocumentModal'
 import { MindMapCanvas } from '../components/MindMapCanvas'
@@ -6,6 +7,11 @@ import { useMindMapStore } from '../stores/mindmapStore'
 
 export function MindMapPage() {
   const addNode = useMindMapStore((state) => state.addNode)
+  const hydrateSnapshot = useMindMapStore((state) => state.hydrateSnapshot)
+
+  useEffect(() => {
+    void hydrateSnapshot()
+  }, [hydrateSnapshot])
 
   return (
     <main className="app-shell">

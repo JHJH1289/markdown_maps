@@ -14,3 +14,26 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Backend
+
+Spring Boot backend lives in `backend`.
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+On Windows:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+The backend serves:
+
+- `GET /api/mind-map`
+- `PUT /api/mind-map`
+
+Snapshots are saved to `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
