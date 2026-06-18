@@ -5,5 +5,10 @@ import java.nio.file.Path;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "markdown-maps")
-public record MindMapStorageProperties(Path storagePath) {
+public record MindMapStorageProperties(
+	Path storagePath,
+	String supabaseUrl,
+	String supabaseServiceRoleKey,
+	String supabaseSnapshotId
+) {
 }

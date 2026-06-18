@@ -134,11 +134,17 @@ button:hover {
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 14px 34px rgba(31, 49, 68, 0.12);
+  cursor: grab;
+  user-select: none;
 }
 
 .mind-map-node.selected {
   border-color: var(--accent);
   box-shadow: 0 18px 44px rgba(33, 107, 165, 0.2);
+}
+
+.react-flow__node.dragging .mind-map-node {
+  cursor: grabbing;
 }
 
 .node-title {

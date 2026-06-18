@@ -37,3 +37,21 @@ The backend serves:
 - `PUT /api/mind-map`
 
 Snapshots are saved to `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
+
+## Supabase storage
+
+The backend can store the mind map snapshot in Supabase Postgres instead of the local JSON file.
+
+1. Open the Supabase SQL Editor for project `oxufnvvzgnxsveukeajm`.
+2. Run `supabase/migrations/001_mind_map_snapshots.sql`.
+3. Start the backend with Supabase credentials:
+
+```powershell
+$env:SUPABASE_URL = "https://oxufnvvzgnxsveukeajm.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
+$env:SUPABASE_SNAPSHOT_ID = "default"
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` on the backend only. Do not put it in Vite env vars or frontend code.

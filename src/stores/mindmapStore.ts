@@ -108,16 +108,19 @@ const initialSnapshot: MindMapSnapshot = {
 
 type MindMapState = MindMapSnapshot & {
   copiedNodeIds: string[]
+  focusedNodeId: string | null
   hydrateSnapshot: () => Promise<void>
   isDocumentModalOpen: boolean
   selectedDocument: MarkdownDocument | null
   addNode: () => void
   addNodeAtPosition: (position: XYPosition) => void
+  clearFocusedNode: () => void
   closeDocument: () => void
   copySelectedNodes: () => void
   deleteEdge: (edgeId: string) => void
   deleteNode: (nodeId: string) => void
   deleteSelectedElements: () => void
+  focusDocumentNode: (documentId: DocumentId) => void
   onConnect: (connection: Connection) => void
   onEdgesChange: (changes: EdgeChange<MindMapFlowEdge>[]) => void
   onNodesChange: (changes: NodeChange<MindMapFlowNode>[]) => void
@@ -167,6 +170,7 @@ const bootSnapshot = normalizeSnapshot(loadCachedMindMapSnapshot() ?? initialSna
 export const useMindMapStore = create<MindMapState>((set, get) => ({
   ...withSelectedDocument(bootSnapshot),
   copiedNodeIds: [],
+  focusedNodeId: null,
   isDocumentModalOpen: false,
 
   hydrateSnapshot: async () => {
@@ -228,6 +232,10 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
   closeDocument: () => {
     set({ isDocumentModalOpen: false })
+  },
+
+  clearFocusedNode: () => {
+    set({ focusedNodeId: null })
   },
 
   copySelectedNodes: () => {
@@ -324,6 +332,34 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           }),
         ),
         isDocumentModalOpen: selectedDocumentId ? state.isDocumentModalOpen : false,
+      }
+    })
+  },
+
+  focusDocumentNode: (documentId) => {
+    set((state) => {
+      const targetNode = state.nodes.find(
+        (node) => node.data.documentId === documentId,
+      )
+
+      if (!targetNode) {
+        return state
+      }
+
+      return {
+        ...withSelectedDocument(
+          persist({
+            nodes: state.nodes.map((node) => ({
+              ...node,
+              selected: node.id === targetNode.id,
+            })),
+            edges: state.edges,
+            documents: state.documents,
+            selectedDocumentId: documentId,
+          }),
+        ),
+        focusedNodeId: targetNode.id,
+        isDocumentModalOpen: false,
       }
     })
   },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import {
   Background,
@@ -14,6 +14,7 @@ import {
   type EdgeMouseHandler,
   type NodeMouseHandler,
   type NodeTypes,
+  type OnNodeDrag,
   type XYPosition,
 } from '@xyflow/react'
 import { MindMapNode } from './MindMapNode'
@@ -57,10 +58,12 @@ function isEditableTarget(target: EventTarget | null) {
 
 function MindMapCanvasInner() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const draggedNodeIdRef = useRef<string | null>(null)
+  const { getNode, screenToFlowPosition, setCenter } = useReactFlow()
   const nodes = useMindMapStore((state) => state.nodes)
   const storedEdges = useMindMapStore((state) => state.edges)
   const addNodeAtPosition = useMindMapStore((state) => state.addNodeAtPosition)
+  const clearFocusedNode = useMindMapStore((state) => state.clearFocusedNode)
   const copySelectedNodes = useMindMapStore((state) => state.copySelectedNodes)
   const deleteEdge = useMindMapStore((state) => state.deleteEdge)
   const deleteNode = useMindMapStore((state) => state.deleteNode)
@@ -72,6 +75,7 @@ function MindMapCanvasInner() {
   const onConnect = useMindMapStore((state) => state.onConnect)
   const pasteCopiedNodes = useMindMapStore((state) => state.pasteCopiedNodes)
   const selectDocument = useMindMapStore((state) => state.selectDocument)
+  const focusedNodeId = useMindMapStore((state) => state.focusedNodeId)
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ mindMapNode: MindMapNode }), [])
   const edges = useMemo(
@@ -124,8 +128,48 @@ function MindMapCanvasInner() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [copySelectedNodes, deleteSelectedElements, pasteCopiedNodes])
 
+  useEffect(() => {
+    if (!focusedNodeId) {
+      return
+    }
+
+    const focusedNode =
+      getNode(focusedNodeId) ?? nodes.find((node) => node.id === focusedNodeId)
+
+    if (!focusedNode) {
+      clearFocusedNode()
+      return
+    }
+
+    const width = focusedNode.measured?.width ?? focusedNode.width ?? 176
+    const height = focusedNode.measured?.height ?? focusedNode.height ?? 72
+
+    void setCenter(
+      focusedNode.position.x + width / 2,
+      focusedNode.position.y + height / 2,
+      { duration: 520, zoom: 1 },
+    )
+    clearFocusedNode()
+  }, [clearFocusedNode, focusedNodeId, getNode, nodes, setCenter])
+
   const handleNodeClick: NodeMouseHandler<MindMapFlowNode> = (_event, node) => {
+    if (draggedNodeIdRef.current === node.id) {
+      return
+    }
+
     selectDocument(node.data.documentId)
+  }
+
+  const handleNodeDragStart: OnNodeDrag<MindMapFlowNode> = (_event, node) => {
+    draggedNodeIdRef.current = node.id
+  }
+
+  const handleNodeDragStop: OnNodeDrag<MindMapFlowNode> = (_event, node) => {
+    window.setTimeout(() => {
+      if (draggedNodeIdRef.current === node.id) {
+        draggedNodeIdRef.current = null
+      }
+    }, 0)
   }
 
   const handlePaneContextMenu = (event: PaneContextMenuEvent) => {
@@ -198,18 +242,21 @@ function MindMapCanvasInner() {
         minZoom={0.001}
         multiSelectionKeyCode={null}
         nodes={nodes}
+        nodesDraggable
         nodeTypes={nodeTypes}
         onConnect={onConnect}
         onEdgeContextMenu={handleEdgeContextMenu}
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
+        onNodeDragStart={handleNodeDragStart}
+        onNodeDragStop={handleNodeDragStop}
         onNodesChange={onNodesChange}
         onPaneClick={() => setContextMenu(null)}
         onPaneContextMenu={handlePaneContextMenu}
-        panOnDrag={[1]}
+        panOnDrag
         selectionMode={SelectionMode.Partial}
-        selectionOnDrag
+        selectionOnDrag={false}
       >
         <Background color="#c8d3dc" gap={28} variant={BackgroundVariant.Lines} />
         <Controls position="bottom-left" />

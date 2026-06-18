@@ -5,7 +5,7 @@ import { useMindMapStore } from '../stores/mindmapStore'
 export function TitleSearch() {
   const [query, setQuery] = useState('')
   const documents = useMindMapStore((state) => state.documents)
-  const selectDocument = useMindMapStore((state) => state.selectDocument)
+  const focusDocumentNode = useMindMapStore((state) => state.focusDocumentNode)
 
   const results = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -19,8 +19,8 @@ export function TitleSearch() {
       .slice(0, 6)
   }, [documents, query])
 
-  const openDocument = (documentId: string) => {
-    selectDocument(documentId)
+  const focusNode = (documentId: string) => {
+    focusDocumentNode(documentId)
     setQuery('')
   }
 
@@ -28,7 +28,7 @@ export function TitleSearch() {
     event.preventDefault()
 
     if (results[0]) {
-      openDocument(results[0].id)
+      focusNode(results[0].id)
     }
   }
 
@@ -47,7 +47,7 @@ export function TitleSearch() {
           {results.map((document) => (
             <button
               key={document.id}
-              onClick={() => openDocument(document.id)}
+              onClick={() => focusNode(document.id)}
               type="button"
             >
               {document.title}
