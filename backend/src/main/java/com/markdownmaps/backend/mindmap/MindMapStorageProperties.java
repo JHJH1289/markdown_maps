@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "markdown-maps")
 public record MindMapStorageProperties(
+	String storageBackend,
 	Path storagePath,
 	String supabaseUrl,
 	String supabaseServiceRoleKey,

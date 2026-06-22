@@ -3,6 +3,7 @@ package com.markdownmaps.backend.mindmap;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,7 +31,22 @@ public class MindMapSnapshotService {
 		this.supabaseSnapshotId = hasText(properties.supabaseSnapshotId())
 			? properties.supabaseSnapshotId()
 			: "default";
-		this.supabaseClient = hasText(properties.supabaseUrl()) && hasText(supabaseApiKey)
+		String storageBackend = hasText(properties.storageBackend())
+			? properties.storageBackend().trim().toLowerCase(Locale.ROOT)
+			: "json";
+
+		if (!storageBackend.equals("json") && !storageBackend.equals("supabase")) {
+			throw new IllegalArgumentException("Storage backend must be 'json' or 'supabase'");
+		}
+
+		if (storageBackend.equals("supabase")
+			&& (!hasText(properties.supabaseUrl()) || !hasText(supabaseApiKey))) {
+			throw new IllegalArgumentException(
+				"Supabase storage requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+			);
+		}
+
+		this.supabaseClient = storageBackend.equals("supabase")
 			? RestClient.builder()
 				.baseUrl(stripTrailingSlash(properties.supabaseUrl()))
 				.defaultHeader("apikey", supabaseApiKey)

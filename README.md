@@ -15,7 +15,7 @@ The React Compiler is not enabled on this template because of its impact on dev 
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
-## Backend
+## Backend JSON storage
 
 Spring Boot backend lives in `backend`.
 
@@ -36,11 +36,20 @@ The backend serves:
 - `GET /api/mind-map`
 - `PUT /api/mind-map`
 
-Snapshots are saved to `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
+For the personal-tool workflow, snapshots are saved as one JSON document at `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
+
+You can move the JSON file without changing the frontend:
+
+```powershell
+$env:STORAGE_BACKEND = "json"
+$env:MARKDOWN_MAPS_STORAGE_PATH = "D:\markdown-maps-data\mind-map.json"
+cd backend
+.\mvnw.cmd spring-boot:run
+```
 
 ## Supabase storage
 
-The backend can store the mind map snapshot in Supabase Postgres instead of the local JSON file.
+The Supabase path is still kept for later expansion. Set `STORAGE_BACKEND=supabase` to store the same snapshot JSON in Supabase Postgres instead of the local JSON file.
 
 1. Open the Supabase SQL Editor for project `oxufnvvzgnxsveukeajm`.
 2. Run `supabase/migrations/001_mind_map_snapshots.sql`.
@@ -50,6 +59,7 @@ The backend can store the mind map snapshot in Supabase Postgres instead of the 
 $env:SUPABASE_URL = "https://oxufnvvzgnxsveukeajm.supabase.co"
 $env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
 $env:SUPABASE_SNAPSHOT_ID = "default"
+$env:STORAGE_BACKEND = "supabase"
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
