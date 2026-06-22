@@ -3,6 +3,7 @@ import type { MindMapFlowNode } from '../types/mindmap'
 
 const statusLabels = {
   draft: '\ucd08\uc548',
+  hidden: '',
   ready: '\uc644\ub8cc',
 }
 
@@ -57,7 +58,9 @@ export function MindMapNode({ data, selected }: NodeProps<MindMapFlowNode>) {
         position={Position.Left}
         type="source"
       />
-      <div className="node-kicker">{statusLabels[data.status]}</div>
+      {data.status !== 'hidden' && (
+        <div className="node-kicker">{statusLabels[data.status]}</div>
+      )}
       <div className="node-title">{data.title}</div>
     </div>
   )

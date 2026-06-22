@@ -1,19 +1,21 @@
 import MDEditor from '@uiw/react-md-editor'
-import type { MarkdownDocument } from '../types/mindmap'
+import type { MarkdownDocument, ThemeMode } from '../types/mindmap'
 
 type MarkdownEditorProps = {
   document: MarkdownDocument
   onChange: (content: string) => void
   onTitleChange: (title: string) => void
+  theme: ThemeMode
 }
 
 export function MarkdownEditor({
   document,
   onChange,
   onTitleChange,
+  theme,
 }: MarkdownEditorProps) {
   return (
-    <div className="editor-stack" data-color-mode="light">
+    <div className="editor-stack" data-color-mode={theme}>
       <input
         aria-label="문서 제목"
         className="title-input"

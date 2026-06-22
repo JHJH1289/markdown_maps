@@ -1,12 +1,25 @@
 import { useEffect } from 'react'
 import { MarkdownEditor } from './MarkdownEditor'
 import { useMindMapStore } from '../stores/mindmapStore'
+import type { MindMapNodeStatus, ThemeMode } from '../types/mindmap'
 
-export function DocumentModal() {
+type DocumentModalProps = {
+  theme: ThemeMode
+}
+
+const statusOptions: Array<{ label: string; value: MindMapNodeStatus }> = [
+  { label: '숨김', value: 'hidden' },
+  { label: '초안', value: 'draft' },
+  { label: '완료', value: 'ready' },
+]
+
+export function DocumentModal({ theme }: DocumentModalProps) {
   const isOpen = useMindMapStore((state) => state.isDocumentModalOpen)
   const selectedDocument = useMindMapStore((state) => state.selectedDocument)
+  const nodes = useMindMapStore((state) => state.nodes)
   const closeDocument = useMindMapStore((state) => state.closeDocument)
   const updateDocumentContent = useMindMapStore((state) => state.updateDocumentContent)
+  const updateDocumentStatus = useMindMapStore((state) => state.updateDocumentStatus)
   const updateDocumentTitle = useMindMapStore((state) => state.updateDocumentTitle)
 
   useEffect(() => {
@@ -28,6 +41,11 @@ export function DocumentModal() {
     return null
   }
 
+  const selectedNode = nodes.find(
+    (node) => node.data.documentId === selectedDocument.id,
+  )
+  const selectedStatus = selectedNode?.data.status ?? 'draft'
+
   return (
     <div
       aria-labelledby="document-modal-title"
@@ -41,20 +59,42 @@ export function DocumentModal() {
             <p className="panel-kicker">마크다운 문서</p>
             <h2 id="document-modal-title">{selectedDocument.title}</h2>
           </div>
-          <button
-            aria-label="문서 편집기 닫기"
-            className="icon-button"
-            onClick={closeDocument}
-            type="button"
-          >
-            닫기
-          </button>
+          <div className="modal-actions">
+            <label className="status-select">
+              <span>상태</span>
+              <select
+                aria-label="노드 상태"
+                onChange={(event) =>
+                  updateDocumentStatus(
+                    selectedDocument.id,
+                    event.target.value as MindMapNodeStatus,
+                  )
+                }
+                value={selectedStatus}
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              aria-label="문서 편집기 닫기"
+              className="icon-button"
+              onClick={closeDocument}
+              type="button"
+            >
+              닫기
+            </button>
+          </div>
         </div>
 
         <MarkdownEditor
           document={selectedDocument}
           onChange={(content) => updateDocumentContent(selectedDocument.id, content)}
           onTitleChange={(title) => updateDocumentTitle(selectedDocument.id, title)}
+          theme={theme}
         />
       </div>
     </div>

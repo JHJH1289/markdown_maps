@@ -13,8 +13,10 @@ export type MarkdownDocument = {
 export type MindMapNodeData = {
   title: string
   documentId: DocumentId
-  status: 'draft' | 'ready'
+  status: MindMapNodeStatus
 }
+
+export type MindMapNodeStatus = 'hidden' | 'draft' | 'ready'
 
 export type MindMapFlowNode = Node<MindMapNodeData, 'mindMapNode'>
 export type MindMapFlowEdge = Edge
@@ -25,3 +27,5 @@ export type MindMapSnapshot = {
   documents: MarkdownDocument[]
   selectedDocumentId: DocumentId | null
 }
+
+export type ThemeMode = 'light' | 'dark'
