@@ -2,6 +2,27 @@
   min-height: 100svh;
   display: block;
   background: var(--surface);
+  color: var(--text);
+}
+
+.app-shell.theme-dark {
+  --surface: #101312;
+  --canvas: #141816;
+  --panel: rgba(28, 34, 31, 0.94);
+  --elevated: #1c221f;
+  --text: #d7e2dc;
+  --text-strong: #f5fbf7;
+  --muted: #9aa9a1;
+  --border: #35433c;
+  --accent: #6fbf9c;
+  --accent-contrast: #0e1512;
+  --node-border: #3d4b43;
+  --selection-glow: rgba(111, 191, 156, 0.24);
+  --panel-shadow: rgba(0, 0, 0, 0.34);
+  --menu-shadow: rgba(0, 0, 0, 0.42);
+  --modal-backdrop: rgba(4, 7, 6, 0.58);
+  --modal-shadow: rgba(0, 0, 0, 0.46);
+  color-scheme: dark;
 }
 
 .map-workspace {
@@ -14,7 +35,7 @@
 .mind-map-canvas {
   width: 100%;
   height: 100%;
-  background: #f5f8fa;
+  background: var(--canvas);
 }
 
 .floating-toolbar {
@@ -24,8 +45,8 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 16px 38px rgba(23, 38, 54, 0.12);
+  background: var(--panel);
+  box-shadow: 0 16px 38px var(--panel-shadow);
 }
 
 .search-panel {
@@ -33,8 +54,8 @@
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 16px 38px rgba(23, 38, 54, 0.12);
+  background: var(--panel);
+  box-shadow: 0 16px 38px var(--panel-shadow);
 }
 
 .title-search {
@@ -48,6 +69,7 @@
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
+  background: var(--elevated);
   color: var(--text-strong);
   font: inherit;
 }
@@ -68,8 +90,8 @@
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 18px 44px rgba(23, 38, 54, 0.16);
+  background: var(--elevated);
+  box-shadow: 0 18px 44px var(--menu-shadow);
 }
 
 .search-results button {
@@ -104,7 +126,7 @@ button {
   min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--elevated);
   color: var(--text-strong);
   cursor: pointer;
   font: inherit;
@@ -121,10 +143,14 @@ button:hover {
   transform: translateY(-1px);
 }
 
-.floating-toolbar button {
+.floating-toolbar .theme-toggle {
   padding: 0 14px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-contrast);
+}
+
+.floating-toolbar .arrange-button {
+  padding: 0 14px;
 }
 
 .floating-toolbar .secondary-button {
@@ -239,17 +265,17 @@ button:disabled {
 .mind-map-node {
   min-width: 176px;
   padding: 14px 16px;
-  border: 1px solid #cbd8e2;
+  border: 1px solid var(--node-border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 14px 34px rgba(31, 49, 68, 0.12);
+  background: var(--elevated);
+  box-shadow: 0 14px 34px var(--panel-shadow);
   cursor: grab;
   user-select: none;
 }
 
 .mind-map-node.selected {
   border-color: var(--accent);
-  box-shadow: 0 18px 44px rgba(33, 107, 165, 0.2);
+  box-shadow: 0 18px 44px var(--selection-glow);
 }
 
 .react-flow__node.dragging .mind-map-node {
@@ -267,7 +293,7 @@ button:disabled {
 .node-handle {
   width: 10px;
   height: 10px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--elevated);
   background: var(--accent);
 }
 
@@ -300,6 +326,22 @@ button:disabled {
   stroke-dasharray: none;
 }
 
+.theme-dark .react-flow__controls-button,
+.theme-dark .react-flow__minimap {
+  border-color: var(--border);
+  background: var(--elevated);
+  color: var(--text-strong);
+}
+
+.theme-dark .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.theme-dark .react-flow__selection {
+  border-color: var(--accent);
+  background: rgba(111, 191, 156, 0.14);
+}
+
 .context-menu {
   position: fixed;
   z-index: 60;
@@ -307,8 +349,8 @@ button:disabled {
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 18px 44px rgba(23, 38, 54, 0.18);
+  background: var(--elevated);
+  box-shadow: 0 18px 44px var(--menu-shadow);
 }
 
 .context-menu button {
@@ -326,7 +368,7 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 28px;
-  background: rgba(17, 24, 33, 0.36);
+  background: var(--modal-backdrop);
 }
 
 .document-modal {
@@ -339,8 +381,8 @@ button:disabled {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(13, 24, 36, 0.28);
+  background: var(--elevated);
+  box-shadow: 0 24px 70px var(--modal-shadow);
 }
 
 .panel-header {
@@ -348,6 +390,38 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-select select {
+  min-height: 38px;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--elevated);
+  color: var(--text-strong);
+  font: inherit;
+  font-weight: 700;
+}
+
+.status-select select:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(33, 107, 165, 0.14);
 }
 
 .panel-header h2 {
@@ -382,6 +456,7 @@ button:disabled {
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
+  background: var(--elevated);
   color: var(--text-strong);
   font: inherit;
   font-size: 18px;
@@ -420,7 +495,16 @@ button:disabled {
   }
 
   .floating-toolbar button {
-    width: 100%;
+    flex: 1 1 120px;
+  }
+
+  .panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modal-actions {
+    justify-content: space-between;
   }
 
   .modal-backdrop {

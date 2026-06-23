@@ -19,7 +19,7 @@ import {
 } from '@xyflow/react'
 import { MindMapNode } from './MindMapNode'
 import { useMindMapStore } from '../stores/mindmapStore'
-import type { MindMapFlowNode } from '../types/mindmap'
+import type { MindMapFlowNode, ThemeMode } from '../types/mindmap'
 
 type ContextMenuState =
   | {
@@ -56,7 +56,11 @@ function isEditableTarget(target: EventTarget | null) {
   )
 }
 
-function MindMapCanvasInner() {
+type MindMapCanvasInnerProps = {
+  theme: ThemeMode
+}
+
+function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const draggedNodeIdRef = useRef<string | null>(null)
   const { getNode, screenToFlowPosition, setCenter } = useReactFlow()
@@ -83,16 +87,19 @@ function MindMapCanvasInner() {
       storedEdges.map((edge) => ({
         ...edge,
         animated: false,
-        style: { stroke: '#4f6f86', strokeWidth: 2 },
+        style: {
+          stroke: theme === 'dark' ? '#78b69a' : '#4f6f86',
+          strokeWidth: 2,
+        },
       })),
-    [storedEdges],
+    [storedEdges, theme],
   )
   const defaultEdgeOptions = useMemo<DefaultEdgeOptions>(
     () => ({
       animated: false,
-      style: { stroke: '#4f6f86', strokeWidth: 2 },
+      style: { stroke: theme === 'dark' ? '#78b69a' : '#4f6f86', strokeWidth: 2 },
     }),
-    [],
+    [theme],
   )
 
   useEffect(() => {
@@ -232,8 +239,11 @@ function MindMapCanvasInner() {
     <>
       <ReactFlow
         className="mind-map-canvas"
-        colorMode="light"
-        connectionLineStyle={{ stroke: '#4f6f86', strokeWidth: 2 }}
+        colorMode={theme}
+        connectionLineStyle={{
+          stroke: theme === 'dark' ? '#78b69a' : '#4f6f86',
+          strokeWidth: 2,
+        }}
         connectionMode={ConnectionMode.Loose}
         defaultEdgeOptions={defaultEdgeOptions}
         edges={edges}
@@ -255,14 +265,23 @@ function MindMapCanvasInner() {
         onPaneClick={() => setContextMenu(null)}
         onPaneContextMenu={handlePaneContextMenu}
         panOnDrag
+        selectionKeyCode="Control"
         selectionMode={SelectionMode.Partial}
         selectionOnDrag={false}
       >
-        <Background color="#c8d3dc" gap={28} variant={BackgroundVariant.Lines} />
+        <Background
+          color={theme === 'dark' ? '#2f3b35' : '#c8d3dc'}
+          gap={28}
+          variant={BackgroundVariant.Lines}
+        />
         <Controls position="bottom-left" />
         <MiniMap
-          maskColor="rgba(242, 246, 248, 0.72)"
-          nodeColor="#216ba5"
+          maskColor={
+            theme === 'dark'
+              ? 'rgba(16, 19, 18, 0.72)'
+              : 'rgba(242, 246, 248, 0.72)'
+          }
+          nodeColor={theme === 'dark' ? '#6fbf9c' : '#216ba5'}
           nodeStrokeWidth={3}
           pannable
           position="bottom-right"
@@ -294,10 +313,14 @@ function MindMapCanvasInner() {
   )
 }
 
-export function MindMapCanvas() {
+type MindMapCanvasProps = {
+  theme: ThemeMode
+}
+
+export function MindMapCanvas({ theme }: MindMapCanvasProps) {
   return (
     <ReactFlowProvider>
-      <MindMapCanvasInner />
+      <MindMapCanvasInner theme={theme} />
     </ReactFlowProvider>
   )
 }

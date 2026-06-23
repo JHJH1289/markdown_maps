@@ -18,11 +18,16 @@ import type {
   MarkdownDocument,
   MindMapFlowEdge,
   MindMapFlowNode,
+  MindMapNodeStatus,
   MindMapSnapshot,
 } from '../types/mindmap'
 
 const now = () => new Date().toISOString()
 const edgeStyle = { stroke: '#4f6f86', strokeWidth: 2 }
+const layoutSpacing = {
+  x: 300,
+  y: 132,
+}
 
 const text = {
   copiedSuffix: '\ubcf5\uc0ac\ubcf8',
@@ -115,6 +120,7 @@ type MindMapState = MindMapSnapshot & {
   ownerId: string | null
   addNode: () => void
   addNodeAtPosition: (position: XYPosition) => void
+  autoArrangeNodes: () => void
   clearFocusedNode: () => void
   closeDocument: () => void
   copySelectedNodes: () => void
@@ -129,11 +135,24 @@ type MindMapState = MindMapSnapshot & {
   selectDocument: (documentId: DocumentId) => void
   setActiveOwner: (ownerId: string | null) => Promise<void>
   updateDocumentContent: (documentId: DocumentId, content: string) => void
+  updateDocumentStatus: (
+    documentId: DocumentId,
+    status: MindMapNodeStatus,
+  ) => void
   updateDocumentTitle: (documentId: DocumentId, title: string) => void
 }
 
+<<<<<<< HEAD
 function persist(snapshot: MindMapSnapshot, ownerId: string | null) {
   saveMindMapSnapshot(snapshot, ownerId)
+=======
+function isMindMapNodeStatus(value: unknown): value is MindMapNodeStatus {
+  return value === 'hidden' || value === 'draft' || value === 'ready'
+}
+
+function persist(snapshot: MindMapSnapshot) {
+  saveMindMapSnapshot(snapshot)
+>>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
   return snapshot
 }
 
@@ -153,6 +172,7 @@ function normalizeSnapshot(snapshot: MindMapSnapshot): MindMapSnapshot {
       data: {
         ...node.data,
         title: legacyTitles[node.data.title] ?? node.data.title,
+        status: isMindMapNodeStatus(node.data.status) ? node.data.status : 'draft',
       },
     })),
     edges: snapshot.edges.map((edge) => ({
@@ -233,6 +253,115 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         ),
         isDocumentModalOpen: false,
       }
+    })
+  },
+
+  autoArrangeNodes: () => {
+    set((state) => {
+      if (state.nodes.length === 0) {
+        return state
+      }
+
+      const nodeIds = new Set(state.nodes.map((node) => node.id))
+      const orderedNodes = [...state.nodes].sort((a, b) => {
+        if (a.position.y !== b.position.y) {
+          return a.position.y - b.position.y
+        }
+
+        return a.position.x - b.position.x
+      })
+      const origin = orderedNodes.reduce(
+        (current, node) => ({
+          x: Math.min(current.x, node.position.x),
+          y: Math.min(current.y, node.position.y),
+        }),
+        { x: orderedNodes[0].position.x, y: orderedNodes[0].position.y },
+      )
+      const childrenByNodeId = new Map<string, string[]>()
+      const incomingCounts = new Map<string, number>()
+
+      for (const node of orderedNodes) {
+        childrenByNodeId.set(node.id, [])
+        incomingCounts.set(node.id, 0)
+      }
+
+      for (const edge of state.edges) {
+        if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
+          continue
+        }
+
+        childrenByNodeId.get(edge.source)?.push(edge.target)
+        incomingCounts.set(edge.target, (incomingCounts.get(edge.target) ?? 0) + 1)
+      }
+
+      const nodeOrder = new Map(orderedNodes.map((node, index) => [node.id, index]))
+
+      for (const children of childrenByNodeId.values()) {
+        children.sort((a, b) => (nodeOrder.get(a) ?? 0) - (nodeOrder.get(b) ?? 0))
+      }
+
+      const roots = orderedNodes
+        .filter((node) => (incomingCounts.get(node.id) ?? 0) === 0)
+        .map((node) => node.id)
+      const layoutRoots = roots.length > 0 ? roots : [orderedNodes[0].id]
+      const visited = new Set<string>()
+      const positions = new Map<string, XYPosition>()
+      let row = 0
+
+      const placeNode = (nodeId: string, depth: number): number => {
+        if (visited.has(nodeId)) {
+          return positions.get(nodeId)?.y ?? row * layoutSpacing.y
+        }
+
+        visited.add(nodeId)
+
+        const children = (childrenByNodeId.get(nodeId) ?? []).filter(
+          (childId) => !visited.has(childId),
+        )
+
+        if (children.length === 0) {
+          const y = row * layoutSpacing.y
+          positions.set(nodeId, {
+            x: origin.x + depth * layoutSpacing.x,
+            y: origin.y + y,
+          })
+          row += 1
+          return y
+        }
+
+        const childRows = children.map((childId) => placeNode(childId, depth + 1))
+        const y =
+          childRows.reduce((total, childY) => total + childY, 0) / childRows.length
+        positions.set(nodeId, {
+          x: origin.x + depth * layoutSpacing.x,
+          y: origin.y + y,
+        })
+        return y
+      }
+
+      for (const rootId of layoutRoots) {
+        placeNode(rootId, 0)
+      }
+
+      for (const node of orderedNodes) {
+        if (!visited.has(node.id)) {
+          placeNode(node.id, 0)
+        }
+      }
+
+      const nextNodes = state.nodes.map((node) => ({
+        ...node,
+        position: positions.get(node.id) ?? node.position,
+      }))
+
+      return withSelectedDocument(
+        persist({
+          nodes: nextNodes,
+          edges: state.edges,
+          documents: state.documents,
+          selectedDocumentId: state.selectedDocumentId,
+        }),
+      )
     })
   },
 
@@ -578,6 +707,23 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         },
         state.ownerId,
         ),
+      ),
+    )
+  },
+
+  updateDocumentStatus: (documentId, status) => {
+    set((state) =>
+      withSelectedDocument(
+        persist({
+          nodes: state.nodes.map((node) =>
+            node.data.documentId === documentId
+              ? { ...node, data: { ...node.data, status } }
+              : node,
+          ),
+          edges: state.edges,
+          documents: state.documents,
+          selectedDocumentId: state.selectedDocumentId,
+        }),
       ),
     )
   },
