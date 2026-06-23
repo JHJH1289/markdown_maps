@@ -1,137 +1,211 @@
-# React + Vite
+# Markdown Maps
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Markdown Maps는 마인드맵 노드와 Markdown 문서를 함께 관리하는 웹 애플리케이션입니다. 각 노드는 하나의 Markdown 문서와 연결되며, Google 로그인 후 사용자별 스냅샷을 온라인에 저장할 수 있습니다.
 
-Currently, two official plugins are available:
+배포 주소: https://markdownmaps.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 주요 기능
 
-## React Compiler
+- Google 계정 로그인
+- 사용자별 마인드맵 스냅샷 분리 저장
+- 노드 기반 마인드맵 편집
+- 노드별 Markdown 문서 작성 및 미리보기
+- 노드 제목 검색 및 해당 노드로 이동
+- 노드 추가, 삭제, 복사, 붙여넣기
+- 노드 간 연결선 생성 및 삭제
+- 연결선 선택, Delete/Backspace 삭제
+- 우클릭 메뉴로 노드/선 삭제
+- Ctrl + 드래그 또는 우클릭 드래그로 영역 선택
+- 자동 정렬
+- 수동 저장 버튼
+- 5분 주기 자동 저장
+- 자동 저장 켜기/끄기
+- 라이트/다크 테마
+- 개인별 데이터가 없을 때 `새 노드 1` 기본 워크스페이스 제공
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 기술 스택
 
-## Expanding the ESLint configuration
+### Frontend
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React 19
+- TypeScript
+- Vite
+- Zustand
+- React Flow (`@xyflow/react`)
+- `@uiw/react-md-editor`
+- Google Identity Services
+- ESLint
+- Vercel
 
-## Backend JSON storage
+### Backend
 
-Spring Boot backend lives in `backend`.
+- Java 17
+- Spring Boot 3.5
+- Spring Web MVC
+- Google API Client
+- Jackson
+- Maven
+- Docker
+- Google Cloud Run
 
-```bash
-cd backend
-./mvnw spring-boot:run
+### Storage / Auth
+
+- Supabase Postgres
+- Supabase REST API
+- Google OAuth ID Token 검증
+- 로컬 JSON 저장 모드 지원
+
+## 프로젝트 구조
+
+```text
+markdown_maps/
+  src/                 React 프론트엔드
+  backend/             Spring Boot 백엔드
+  backend/data/        로컬 JSON 저장소 기본 데이터
+  supabase/migrations/ Supabase 테이블 마이그레이션
+  vercel.json          Vercel 배포 설정
 ```
 
-On Windows:
+## 동작 방식
+
+1. 사용자가 Google 계정으로 로그인합니다.
+2. 프론트엔드는 Google ID 토큰을 백엔드 요청에 `Authorization: Bearer ...` 형태로 전달합니다.
+3. 백엔드는 Google ID 토큰을 검증하고, 토큰의 `sub` 값을 사용자 고유 ID로 사용합니다.
+4. 사용자 ID를 스냅샷 ID로 삼아 Supabase 또는 JSON 저장소에서 마인드맵 데이터를 읽고 씁니다.
+5. 저장된 스냅샷이 없으면 기본 워크스페이스로 `새 노드 1` 하나가 표시됩니다.
+
+## API
+
+백엔드는 마인드맵 스냅샷을 하나의 JSON 문서로 저장합니다.
+
+```http
+GET /api/mind-map
+PUT /api/mind-map
+```
+
+`PUT /api/mind-map` 요청 body 예시:
+
+```json
+{
+  "nodes": [],
+  "edges": [],
+  "documents": [],
+  "selectedDocumentId": null
+}
+```
+
+## 로컬 실행
+
+### 1. 프론트엔드 환경변수
+
+루트의 `.env.local`에 값을 설정합니다.
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+```
+
+Google OAuth 설정의 승인된 JavaScript 원본에 로컬 주소를 추가해야 합니다.
+
+```text
+http://localhost:5173
+```
+
+### 2. 백엔드 실행
+
+JSON 저장 모드로 실행할 수 있습니다.
 
 ```powershell
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-The backend serves:
-
-- `GET /api/mind-map`
-- `PUT /api/mind-map`
-
-For the personal-tool workflow, snapshots are saved as one JSON document at `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
-
-The backend is ready for per-user snapshots. Until Google token validation is wired in, a request can pass `X-Mind-Map-Owner` to select a snapshot owner. Without that header, the backend uses `DEFAULT_SNAPSHOT_ID` / `SUPABASE_SNAPSHOT_ID` / `default`.
+Supabase 저장 모드로 실행하려면 백엔드 환경변수를 설정합니다. `SUPABASE_SERVICE_ROLE_KEY`는 백엔드에서만 사용해야 하며 프론트엔드에 노출하면 안 됩니다.
 
 ```powershell
-Invoke-WebRequest `
-  -Uri "http://localhost:8080/api/mind-map" `
-  -Headers @{ "X-Mind-Map-Owner" = "google-user-id" }
-```
-
-You can move the JSON file without changing the frontend:
-
-```powershell
-$env:STORAGE_BACKEND = "json"
-$env:MARKDOWN_MAPS_STORAGE_PATH = "D:\markdown-maps-data\mind-map.json"
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-## Supabase storage
-
-The Supabase path is still kept for later expansion. Set `STORAGE_BACKEND=supabase` to store the same snapshot JSON in Supabase Postgres instead of the local JSON file.
-
-1. Open the Supabase SQL Editor for project `oxufnvvzgnxsveukeajm`.
-2. Run `supabase/migrations/001_mind_map_snapshots.sql`.
-3. Start the backend with Supabase credentials:
-
-```powershell
-$env:SUPABASE_URL = "https://oxufnvvzgnxsveukeajm.supabase.co"
-$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
-$env:SUPABASE_SNAPSHOT_ID = "default"
 $env:STORAGE_BACKEND = "supabase"
+$env:SUPABASE_URL = "https://your-project.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY = "your-service-role-key"
+$env:GOOGLE_CLIENT_ID = "your-google-client-id.apps.googleusercontent.com"
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Keep `SUPABASE_SERVICE_ROLE_KEY` on the backend only. Do not put it in Vite env vars or frontend code.
-
-## Supabase Auth in the web app
-
-The Vite app can also sign users in directly with Supabase Auth and save one mind map snapshot per user. Run the migration above so the row-level security policies are installed, then set these frontend environment variables:
+### 3. 프론트엔드 실행
 
 ```powershell
-$env:VITE_SUPABASE_URL = "https://oxufnvvzgnxsveukeajm.supabase.co"
-$env:VITE_SUPABASE_ANON_KEY = "<anon-public-key>"
+npm install
 npm run dev
 ```
 
-For hosted deployments, add the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values in the hosting provider's environment settings. The app uses `auth.uid()` as the snapshot row id, so each logged-in user can only read and update their own data.
+개발 서버는 기본적으로 `http://localhost:5173`에서 실행됩니다.
 
-## Free-first deployment
+## Supabase 설정
 
-Recommended low-cost deployment shape:
+Supabase SQL Editor에서 마이그레이션을 실행합니다.
 
-- Frontend: Vercel
-- Backend: Google Cloud Run
-- Durable online storage: Supabase storage mode, or another managed store later
-
-The backend can run with the JSON storage mode on Cloud Run, but Cloud Run container files are ephemeral. Use JSON mode for a quick demo only. For durable online data, set `STORAGE_BACKEND=supabase` and provide the Supabase backend credentials as Cloud Run environment variables.
-
-### Backend on Cloud Run
-
-The backend Docker image is defined in `backend/Dockerfile`. The app reads Cloud Run's `PORT` environment variable via `server.port=${PORT:8080}`.
-
-From the `backend` directory:
-
-```powershell
-gcloud run deploy markdown-maps-backend `
-  --source . `
-  --region asia-northeast3 `
-  --allow-unauthenticated `
-  --set-env-vars "STORAGE_BACKEND=json,CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://*.vercel.app"
+```sql
+-- supabase/migrations/001_mind_map_snapshots.sql
 ```
 
-After Vercel gives you the final frontend URL, update CORS:
+저장 테이블은 사용자별 스냅샷 JSON을 저장합니다. 현재 백엔드는 Google 사용자 ID를 row id로 사용합니다.
 
-```powershell
-gcloud run services update markdown-maps-backend `
-  --region asia-northeast3 `
-  --update-env-vars "CORS_ALLOWED_ORIGIN_PATTERNS=https://your-project.vercel.app,http://localhost:*,http://127.0.0.1:*"
-```
+## 배포 구성
 
-For Supabase-backed durable storage:
-
-```powershell
-gcloud run services update markdown-maps-backend `
-  --region asia-northeast3 `
-  --update-env-vars "STORAGE_BACKEND=supabase,SUPABASE_URL=https://your-project.supabase.co,SUPABASE_SERVICE_ROLE_KEY=<service-role-key>,SUPABASE_SNAPSHOT_ID=default"
-```
-
-### Frontend on Vercel
-
-Set this Vercel environment variable before the production build:
+현재 배포 구조는 다음과 같습니다.
 
 ```text
-VITE_API_BASE_URL=https://your-cloud-run-service-url
+Vercel React Frontend
+        |
+        v
+Google Cloud Run Spring Boot Backend
+        |
+        v
+Supabase Postgres
 ```
 
-Then deploy the repository root to Vercel. The Vercel settings are in `vercel.json`.
+### Vercel 환경변수
+
+```env
+VITE_API_BASE_URL=https://your-cloud-run-service-url
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+```
+
+### Cloud Run 환경변수
+
+```env
+STORAGE_BACKEND=supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+CORS_ALLOWED_ORIGIN_PATTERNS=https://*.vercel.app,http://localhost:*,http://127.0.0.1:*
+```
+
+백엔드 배포 스크립트:
+
+```powershell
+cd backend
+.\deploy-cloud-run.ps1
+```
+
+프론트엔드 배포:
+
+```powershell
+npx vercel --prod --yes
+```
+
+## 검증 명령어
+
+```powershell
+npm run build
+npm run lint
+cd backend
+.\mvnw.cmd test
+```
+
+## 보안 메모
+
+- Google Client ID는 프론트엔드에 포함될 수 있습니다.
+- Google Client Secret은 현재 구조에서 사용하지 않습니다.
+- Supabase Service Role Key는 반드시 백엔드 환경변수로만 관리해야 합니다.
+- 프론트엔드는 Google ID 토큰만 전달하고, 백엔드가 해당 토큰을 검증합니다.

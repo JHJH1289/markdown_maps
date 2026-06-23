@@ -78,6 +78,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const nodes = useMindMapStore((state) => state.nodes)
   const storedEdges = useMindMapStore((state) => state.edges)
   const addNodeAtPosition = useMindMapStore((state) => state.addNodeAtPosition)
+  const arrangeNodeBranch = useMindMapStore((state) => state.arrangeNodeBranch)
   const clearFocusedNode = useMindMapStore((state) => state.clearFocusedNode)
   const copySelectedNodes = useMindMapStore((state) => state.copySelectedNodes)
   const deleteEdge = useMindMapStore((state) => state.deleteEdge)
@@ -339,6 +340,24 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
     setContextMenu(null)
   }
 
+  const arrangeNodeLeft = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    arrangeNodeBranch(contextMenu.nodeId, 'left')
+    setContextMenu(null)
+  }
+
+  const arrangeNodeRight = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    arrangeNodeBranch(contextMenu.nodeId, 'right')
+    setContextMenu(null)
+  }
+
   const removeEdge = () => {
     if (!contextMenu?.edgeId) {
       return
@@ -446,9 +465,17 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
               {'\uc120 \uc0ad\uc81c'}
             </button>
           ) : contextMenu.nodeId ? (
-            <button onClick={removeNode} type="button">
-              {'\ub178\ub4dc \uc0ad\uc81c'}
-            </button>
+            <>
+              <button onClick={arrangeNodeLeft} type="button">
+                {'\uc88c\ub85c \uc815\ub82c'}
+              </button>
+              <button onClick={arrangeNodeRight} type="button">
+                {'\uc6b0\ub85c \uc815\ub82c'}
+              </button>
+              <button onClick={removeNode} type="button">
+                {'\ub178\ub4dc \uc0ad\uc81c'}
+              </button>
+            </>
           ) : (
             <button onClick={createNode} type="button">
               {'\uc0c8 \ub178\ub4dc \ub9cc\ub4e4\uae30'}

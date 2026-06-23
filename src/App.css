@@ -163,6 +163,12 @@ button:hover {
   color: var(--text-strong);
 }
 
+.secondary-button {
+  padding: 0 14px;
+  background: var(--elevated);
+  color: var(--text-strong);
+}
+
 .google-sign-in-wrap {
   display: flex;
   flex-direction: column;
@@ -457,6 +463,56 @@ button:disabled {
   box-shadow: 0 24px 70px var(--modal-shadow);
 }
 
+.import-modal {
+  display: grid;
+  grid-template-rows: auto minmax(240px, 1fr) auto;
+  gap: 16px;
+  width: min(780px, calc(100vw - 56px));
+  max-height: min(720px, calc(100svh - 56px));
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--elevated);
+  box-shadow: 0 24px 70px var(--modal-shadow);
+}
+
+.import-textarea {
+  width: 100%;
+  min-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--canvas);
+  color: var(--text-strong);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  resize: vertical;
+}
+
+.import-textarea:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(33, 107, 165, 0.14);
+}
+
+.import-error,
+.import-success {
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.import-error {
+  border: 1px solid #e0b4b4;
+  background: #fff4f4;
+  color: #8f2f2f;
+}
+
+.import-success {
+  border: 1px solid rgba(33, 107, 165, 0.28);
+  background: rgba(33, 107, 165, 0.1);
+  color: var(--text-strong);
+}
+
 .panel-header {
   display: flex;
   align-items: flex-start;
@@ -599,5 +655,11 @@ button:disabled {
     max-height: calc(100svh - 24px);
     padding: 18px;
     resize: none;
+  }
+
+  .import-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100svh - 24px);
+    padding: 18px;
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Panel } from '@xyflow/react'
 import { DocumentModal } from '../components/DocumentModal'
+import { ImportMindMapModal } from '../components/ImportMindMapModal'
 import { MindMapCanvas } from '../components/MindMapCanvas'
 import { TitleSearch } from '../components/TitleSearch'
 import { useAuthStore } from '../stores/authStore'
@@ -21,6 +22,7 @@ function getInitialTheme(): ThemeMode {
 
 export function MindMapPage() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const googleUser = useAuthStore((state) => state.googleUser)
   const signOut = useAuthStore((state) => state.signOut)
@@ -98,6 +100,13 @@ export function MindMapPage() {
           </button>
           <button
             className="secondary-button"
+            onClick={() => setIsImportOpen(true)}
+            type="button"
+          >
+            Import JSON
+          </button>
+          <button
+            className="secondary-button"
             disabled={isSigningOut}
             onClick={() => void handleSignOut()}
             type="button"
@@ -109,6 +118,9 @@ export function MindMapPage() {
           <TitleSearch />
         </Panel>
       </section>
+      {isImportOpen && (
+        <ImportMindMapModal onClose={() => setIsImportOpen(false)} />
+      )}
       <DocumentModal theme={theme} />
     </main>
   )
