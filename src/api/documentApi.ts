@@ -2,7 +2,8 @@ import type { MindMapSnapshot } from '../types/mindmap'
 import { GOOGLE_TOKEN_STORAGE_KEY } from '../stores/authStore'
 
 const STORAGE_KEY = 'markdown-maps:mvp'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+const HAS_REMOTE_API = API_BASE_URL.length > 0
 
 function getStorageKey(ownerId?: string | null) {
   return ownerId ? `${STORAGE_KEY}:${ownerId}` : STORAGE_KEY
@@ -21,6 +22,10 @@ export function loadCachedMindMapSnapshot(ownerId?: string | null): MindMapSnaps
     window.localStorage.removeItem(getStorageKey(ownerId))
     return null
   }
+}
+
+function loadCachedMindMapSnapshotWithFallback(ownerId?: string | null) {
+  return loadCachedMindMapSnapshot(ownerId) ?? (ownerId ? loadCachedMindMapSnapshot() : null)
 }
 
 function cacheMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
@@ -43,13 +48,17 @@ function getRequestHeaders(ownerId?: string | null) {
 export async function loadMindMapSnapshot(
   ownerId?: string | null,
 ): Promise<MindMapSnapshot | null> {
+  if (!HAS_REMOTE_API) {
+    return loadCachedMindMapSnapshotWithFallback(ownerId)
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/mind-map`, {
       headers: getRequestHeaders(ownerId),
     })
 
     if (response.status === 204) {
-      return loadCachedMindMapSnapshot(ownerId)
+      return loadCachedMindMapSnapshotWithFallback(ownerId)
     }
 
     if (!response.ok) {
@@ -60,11 +69,15 @@ export async function loadMindMapSnapshot(
     cacheMindMapSnapshot(snapshot, ownerId)
     return snapshot
   } catch {
-    return loadCachedMindMapSnapshot(ownerId)
+    return loadCachedMindMapSnapshotWithFallback(ownerId)
   }
 }
 
 export async function hasMindMapSnapshot(ownerId?: string | null) {
+  if (!HAS_REMOTE_API) {
+    return Boolean(loadCachedMindMapSnapshotWithFallback(ownerId))
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/mind-map`, {
       headers: getRequestHeaders(ownerId),
@@ -72,12 +85,16 @@ export async function hasMindMapSnapshot(ownerId?: string | null) {
 
     return response.ok && response.status !== 204
   } catch {
-    return Boolean(loadCachedMindMapSnapshot(ownerId))
+    return Boolean(loadCachedMindMapSnapshotWithFallback(ownerId))
   }
 }
 
 export async function saveMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
   cacheMindMapSnapshot(snapshot, ownerId)
+
+  if (!HAS_REMOTE_API) {
+    return
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/mind-map`, {

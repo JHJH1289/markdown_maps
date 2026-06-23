@@ -72,8 +72,12 @@ const initialSnapshot: MindMapSnapshot = {
 
 type MindMapState = MindMapSnapshot & {
   autoSaveEnabled: boolean
+  clipboardMode: 'copy' | 'cut'
   copiedNodeIds: string[]
+  expandedNodeIds: string[]
   focusedNodeId: string | null
+  isOwnerLoaded: boolean
+  mapViewNodeId: string | null
   hydrateSnapshot: () => Promise<void>
   importSimpleMindMap: (input: string) => number
   isDocumentModalOpen: boolean
@@ -81,12 +85,18 @@ type MindMapState = MindMapSnapshot & {
   ownerId: string | null
   addNode: () => void
   addNodeAtPosition: (position: XYPosition) => void
+  addChildNode: (nodeId: string) => void
+  addParentNode: (nodeId: string) => void
+  addSiblingNode: (nodeId: string) => void
   arrangeNodeBranch: (nodeId: string, direction: HorizontalDirection) => void
   autoArrangeNodes: () => void
   clearFocusedNode: () => void
   closeDocument: () => void
+  copyNode: (nodeId: string) => void
   copySelectedNodes: () => void
+  cutNode: (nodeId: string) => void
   deleteEdge: (edgeId: string) => void
+  deleteChildNodes: (nodeId: string) => void
   deleteNode: (nodeId: string) => void
   deleteSelectedElements: () => void
   focusDocumentNode: (documentId: DocumentId) => void
@@ -94,6 +104,8 @@ type MindMapState = MindMapSnapshot & {
   onEdgesChange: (changes: EdgeChange<MindMapFlowEdge>[]) => void
   onNodesChange: (changes: NodeChange<MindMapFlowNode>[]) => void
   pasteCopiedNodes: () => void
+  pasteNodeInto: (nodeId: string) => void
+  resetMapView: () => void
   saveSnapshot: () => Promise<void>
   selectDocument: (documentId: DocumentId) => void
   selectNodesInRect: (rect: {
@@ -103,6 +115,8 @@ type MindMapState = MindMapSnapshot & {
     minY: number
   }) => void
   setActiveOwner: (ownerId: string | null) => Promise<void>
+  setMapViewNode: (nodeId: string | null) => void
+  toggleMapViewNode: (nodeId: string) => void
   toggleAutoSave: () => void
   updateDocumentContent: (documentId: DocumentId, content: string) => void
   updateDocumentStatus: (
@@ -123,6 +137,59 @@ function withSelectedDocument(snapshot: MindMapSnapshot) {
     selectedDocument:
       snapshot.documents.find((doc) => doc.id === snapshot.selectedDocumentId) ?? null,
   }
+}
+
+function createNodeDocumentPair(
+  title: string,
+  position: XYPosition,
+  createdAt = now(),
+) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const documentId = `doc-${suffix}`
+  const nodeId = `node-${suffix}`
+
+  return {
+    document: {
+      id: documentId,
+      title,
+      content: `# ${title}\n\n${text.newNodeBody}`,
+      updatedAt: createdAt,
+    } satisfies MarkdownDocument,
+    node: {
+      id: nodeId,
+      type: 'mindMapNode',
+      position,
+      data: { title, documentId, status: '' },
+    } satisfies MindMapFlowNode,
+  }
+}
+
+function getIncomingEdge(edges: MindMapFlowEdge[], nodeId: string) {
+  return edges.find((edge) => edge.target === nodeId)
+}
+
+function getDescendantNodeIds(edges: MindMapFlowEdge[], nodeId: string) {
+  const descendants = new Set<string>()
+  const stack = edges
+    .filter((edge) => edge.source === nodeId)
+    .map((edge) => edge.target)
+
+  while (stack.length > 0) {
+    const currentId = stack.pop()
+
+    if (!currentId || descendants.has(currentId)) {
+      continue
+    }
+
+    descendants.add(currentId)
+    stack.push(
+      ...edges
+        .filter((edge) => edge.source === currentId)
+        .map((edge) => edge.target),
+    )
+  }
+
+  return descendants
 }
 
 function normalizeSnapshot(snapshot: MindMapSnapshot): MindMapSnapshot {
@@ -158,9 +225,13 @@ const bootSnapshot = normalizeSnapshot(loadCachedMindMapSnapshot() ?? initialSna
 export const useMindMapStore = create<MindMapState>((set, get) => ({
   ...withSelectedDocument(bootSnapshot),
   autoSaveEnabled: true,
+  clipboardMode: 'copy',
   copiedNodeIds: [],
+  expandedNodeIds: bootSnapshot.nodes[0]?.id ? [bootSnapshot.nodes[0].id] : [],
   focusedNodeId: null,
   isDocumentModalOpen: false,
+  isOwnerLoaded: false,
+  mapViewNodeId: bootSnapshot.nodes[0]?.id ?? null,
   ownerId: null,
 
   hydrateSnapshot: async () => {
@@ -168,11 +239,20 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     const snapshot = await loadMindMapSnapshot(ownerId)
 
     if (snapshot) {
+      const normalizedSnapshot = normalizeSnapshot(snapshot)
       set((state) => ({
         ...state,
-        ...withSelectedDocument(normalizeSnapshot(snapshot)),
+        ...withSelectedDocument(normalizedSnapshot),
+        expandedNodeIds: normalizedSnapshot.nodes[0]?.id
+          ? [normalizedSnapshot.nodes[0].id]
+          : [],
+        isOwnerLoaded: true,
+        mapViewNodeId: normalizedSnapshot.nodes[0]?.id ?? null,
       }))
+      return
     }
+
+    set({ isOwnerLoaded: true })
   },
 
   importSimpleMindMap: (input) => {
@@ -182,8 +262,10 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
       ...state,
       ...withSelectedDocument(persist(snapshot, state.ownerId)),
       copiedNodeIds: [],
+      expandedNodeIds: snapshot.nodes[0]?.id ? [snapshot.nodes[0].id] : [],
       focusedNodeId: snapshot.nodes[0]?.id ?? null,
       isDocumentModalOpen: false,
+      mapViewNodeId: snapshot.nodes[0]?.id ?? null,
     }))
 
     return snapshot.nodes.length
@@ -259,6 +341,143 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     })
   },
 
+  addChildNode: (nodeId) => {
+    set((state) => {
+      const parentNode = state.nodes.find((node) => node.id === nodeId)
+
+      if (!parentNode) {
+        return state
+      }
+
+      const createdAt = now()
+      const title = `${text.newNode} ${state.nodes.length + 1}`
+      const { document, node } = createNodeDocumentPair(title, {
+        x: parentNode.position.x + 240,
+        y: parentNode.position.y + 92,
+      }, createdAt)
+      const nextNodes = [
+        ...state.nodes.map((item) => ({ ...item, selected: false })),
+        { ...node, selected: true },
+      ]
+      const nextEdges = orientEdgesToNodePositions(nextNodes, [
+        ...state.edges,
+        {
+          id: `edge-${nodeId}-${node.id}`,
+          source: nodeId,
+          target: node.id,
+          animated: false,
+          style: edgeStyle,
+        },
+      ])
+
+      return withSelectedDocument(
+        persist({
+          nodes: nextNodes,
+          edges: nextEdges,
+          documents: [...state.documents, document],
+          selectedDocumentId: document.id,
+        },
+        state.ownerId,
+        ),
+      )
+    })
+  },
+
+  addParentNode: (nodeId) => {
+    set((state) => {
+      const childNode = state.nodes.find((node) => node.id === nodeId)
+
+      if (!childNode) {
+        return state
+      }
+
+      const createdAt = now()
+      const title = `${text.newNode} ${state.nodes.length + 1}`
+      const { document, node } = createNodeDocumentPair(title, {
+        x: childNode.position.x - 240,
+        y: childNode.position.y,
+      }, createdAt)
+      const incomingEdge = getIncomingEdge(state.edges, nodeId)
+      const nextNodes = [
+        ...state.nodes.map((item) => ({ ...item, selected: false })),
+        { ...node, selected: true },
+      ]
+      const nextEdges = orientEdgesToNodePositions(nextNodes, [
+        ...state.edges.filter((edge) => edge.id !== incomingEdge?.id),
+        ...(incomingEdge
+          ? [{
+              ...incomingEdge,
+              id: `edge-${incomingEdge.source}-${node.id}`,
+              target: node.id,
+            }]
+          : []),
+        {
+          id: `edge-${node.id}-${nodeId}`,
+          source: node.id,
+          target: nodeId,
+          animated: false,
+          style: edgeStyle,
+        },
+      ])
+
+      return withSelectedDocument(
+        persist({
+          nodes: nextNodes,
+          edges: nextEdges,
+          documents: [...state.documents, document],
+          selectedDocumentId: document.id,
+        },
+        state.ownerId,
+        ),
+      )
+    })
+  },
+
+  addSiblingNode: (nodeId) => {
+    set((state) => {
+      const targetNode = state.nodes.find((node) => node.id === nodeId)
+
+      if (!targetNode) {
+        return state
+      }
+
+      const createdAt = now()
+      const title = `${text.newNode} ${state.nodes.length + 1}`
+      const { document, node } = createNodeDocumentPair(title, {
+        x: targetNode.position.x,
+        y: targetNode.position.y + 92,
+      }, createdAt)
+      const incomingEdge = getIncomingEdge(state.edges, nodeId)
+      const nextNodes = [
+        ...state.nodes.map((item) => ({ ...item, selected: false })),
+        { ...node, selected: true },
+      ]
+      const nextEdges = incomingEdge
+        ? orientEdgesToNodePositions(nextNodes, [
+            ...state.edges,
+            {
+              id: `edge-${incomingEdge.source}-${node.id}`,
+              source: incomingEdge.source,
+              target: node.id,
+              animated: false,
+              style: edgeStyle,
+            },
+          ])
+        : state.edges
+
+      return withSelectedDocument(
+        persist({
+          nodes: nextNodes,
+          edges: nextEdges,
+          documents: [...state.documents, document],
+          selectedDocumentId: document.id,
+        },
+        state.ownerId,
+        ),
+      )
+    })
+  },
+
   autoArrangeNodes: () => {
     set((state) => {
       if (state.nodes.length === 0) {
@@ -288,14 +507,22 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     set({ focusedNodeId: null })
   },
 
+  copyNode: (nodeId) => {
+    set({ clipboardMode: 'copy', copiedNodeIds: [nodeId] })
+  },
+
   copySelectedNodes: () => {
     const selectedNodeIds = get()
       .nodes.filter((node) => node.selected)
       .map((node) => node.id)
 
     if (selectedNodeIds.length > 0) {
-      set({ copiedNodeIds: selectedNodeIds })
+      set({ clipboardMode: 'copy', copiedNodeIds: selectedNodeIds })
     }
+  },
+
+  cutNode: (nodeId) => {
+    set({ clipboardMode: 'cut', copiedNodeIds: [nodeId] })
   },
 
   deleteEdge: (edgeId) => {
@@ -313,6 +540,57 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     )
   },
 
+  deleteChildNodes: (nodeId) => {
+    set((state) => {
+      const descendantNodeIds = getDescendantNodeIds(state.edges, nodeId)
+
+      if (descendantNodeIds.size === 0) {
+        return state
+      }
+
+      const removedDocumentIds = new Set(
+        state.nodes
+          .filter((node) => descendantNodeIds.has(node.id))
+          .map((node) => node.data.documentId),
+      )
+      const selectedDocumentId = removedDocumentIds.has(
+        state.selectedDocumentId ?? '',
+      )
+        ? null
+        : state.selectedDocumentId
+
+      return {
+        ...withSelectedDocument(
+          persist({
+            nodes: state.nodes.filter((node) => !descendantNodeIds.has(node.id)),
+            edges: state.edges.filter(
+              (edge) =>
+                !descendantNodeIds.has(edge.source) &&
+                !descendantNodeIds.has(edge.target),
+            ),
+            documents: state.documents.filter(
+              (document) => !removedDocumentIds.has(document.id),
+            ),
+            selectedDocumentId,
+          },
+          state.ownerId,
+          ),
+        ),
+        expandedNodeIds: state.expandedNodeIds.filter(
+          (id) => !descendantNodeIds.has(id),
+        ),
+        focusedNodeId: state.focusedNodeId && descendantNodeIds.has(state.focusedNodeId)
+          ? nodeId
+          : state.focusedNodeId,
+        isDocumentModalOpen: selectedDocumentId ? state.isDocumentModalOpen : false,
+        mapViewNodeId:
+          state.mapViewNodeId && descendantNodeIds.has(state.mapViewNodeId)
+            ? nodeId
+            : state.mapViewNodeId,
+      }
+    })
+  },
+
   deleteNode: (nodeId) => {
     set((state) => {
       const targetNode = state.nodes.find((node) => node.id === nodeId)
@@ -324,7 +602,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
       return {
         ...withSelectedDocument(
           persist({
-            nodes: state.nodes.filter((node) => node.id !== nodeId),
+          nodes: state.nodes.filter((node) => node.id !== nodeId),
             edges: state.edges.filter(
               (edge) => edge.source !== nodeId && edge.target !== nodeId,
             ),
@@ -340,6 +618,11 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           targetNode?.data.documentId === state.selectedDocumentId
             ? false
             : state.isDocumentModalOpen,
+        expandedNodeIds: state.expandedNodeIds.filter((id) => id !== nodeId),
+        mapViewNodeId:
+          state.mapViewNodeId === nodeId
+            ? state.nodes.find((node) => node.id !== nodeId)?.id ?? null
+            : state.mapViewNodeId,
       }
     })
   },
@@ -388,6 +671,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           ),
         ),
         isDocumentModalOpen: selectedDocumentId ? state.isDocumentModalOpen : false,
+        expandedNodeIds: state.expandedNodeIds.filter(
+          (nodeId) => !selectedNodeIdSet.has(nodeId),
+        ),
       }
     })
   },
@@ -416,8 +702,12 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           state.ownerId,
           ),
         ),
+        expandedNodeIds: Array.from(
+          new Set([...state.expandedNodeIds, targetNode.id]),
+        ),
         focusedNodeId: targetNode.id,
         isDocumentModalOpen: false,
+        mapViewNodeId: targetNode.id,
       }
     })
   },
@@ -584,6 +874,166 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     })
   },
 
+  pasteNodeInto: (nodeId) => {
+    set((state) => {
+      const targetNode = state.nodes.find((node) => node.id === nodeId)
+      const sourceNodes = state.nodes.filter((node) =>
+        state.copiedNodeIds.includes(node.id),
+      )
+
+      if (!targetNode || sourceNodes.length === 0) {
+        return state
+      }
+
+      if (state.clipboardMode === 'cut') {
+        const movedNodeIds = new Set(sourceNodes.map((node) => node.id))
+        const nextEdges = orientEdgesToNodePositions(state.nodes, [
+          ...state.edges.filter(
+            (edge) => !(movedNodeIds.has(edge.target) && !movedNodeIds.has(edge.source)),
+          ),
+          ...sourceNodes.map((node) => ({
+            id: `edge-${nodeId}-${node.id}`,
+            source: nodeId,
+            target: node.id,
+            animated: false,
+            style: edgeStyle,
+          })),
+        ])
+
+        return {
+          ...withSelectedDocument(
+            persist({
+              nodes: state.nodes,
+              edges: nextEdges,
+              documents: state.documents,
+              selectedDocumentId: state.selectedDocumentId,
+            },
+            state.ownerId,
+            ),
+          ),
+          clipboardMode: 'copy',
+          copiedNodeIds: [],
+          expandedNodeIds: Array.from(new Set([...state.expandedNodeIds, nodeId])),
+        }
+      }
+
+      const createdAt = now()
+      const idPairs = sourceNodes.map((node, index) => {
+        const suffix = `${Date.now()}-${index}-${Math.random()
+          .toString(36)
+          .slice(2, 6)}`
+
+        return {
+          oldDocumentId: node.data.documentId,
+          oldNodeId: node.id,
+          newDocumentId: `doc-copy-${suffix}`,
+          newNodeId: `node-copy-${suffix}`,
+        }
+      })
+      const nextNodes: MindMapFlowNode[] = [
+        ...state.nodes.map((node) => ({ ...node, selected: false })),
+        ...sourceNodes.map((node, index) => {
+          const pair = idPairs[index]
+
+          return {
+            ...node,
+            id: pair.newNodeId,
+            selected: index === 0,
+            position: {
+              x: targetNode.position.x + 240,
+              y: targetNode.position.y + index * 92,
+            },
+            data: {
+              ...node.data,
+              documentId: pair.newDocumentId,
+            },
+          }
+        }),
+      ]
+      const nextDocuments: MarkdownDocument[] = [
+        ...state.documents,
+        ...idPairs.map((pair) => {
+          const sourceDocument = state.documents.find(
+            (doc) => doc.id === pair.oldDocumentId,
+          )
+
+          return {
+            id: pair.newDocumentId,
+            title: sourceDocument?.title ?? text.documentFallback,
+            content: sourceDocument?.content ?? '',
+            updatedAt: createdAt,
+          }
+        }),
+      ]
+      const rootCopiedNodeIds = new Set(
+        sourceNodes
+          .filter(
+            (node) =>
+              !state.edges.some(
+                (edge) =>
+                  edge.target === node.id &&
+                  sourceNodes.some((sourceNode) => sourceNode.id === edge.source),
+              ),
+          )
+          .map((node) => node.id),
+      )
+      const copiedNodeIdSet = new Set(state.copiedNodeIds)
+      const copiedEdges: MindMapFlowEdge[] = [
+        ...state.edges
+          .filter(
+            (edge) =>
+              copiedNodeIdSet.has(edge.source) && copiedNodeIdSet.has(edge.target),
+          )
+          .map((edge, index) => {
+            const sourcePair = idPairs.find((pair) => pair.oldNodeId === edge.source)!
+            const targetPair = idPairs.find((pair) => pair.oldNodeId === edge.target)!
+
+            return {
+              ...edge,
+              id: `edge-copy-${Date.now()}-${index}`,
+              source: sourcePair.newNodeId,
+              target: targetPair.newNodeId,
+              animated: false,
+              style: edgeStyle,
+            }
+          }),
+        ...idPairs
+          .filter((pair) => rootCopiedNodeIds.has(pair.oldNodeId))
+          .map((pair) => ({
+            id: `edge-${nodeId}-${pair.newNodeId}`,
+            source: nodeId,
+            target: pair.newNodeId,
+            animated: false,
+            style: edgeStyle,
+          })),
+      ]
+
+      return {
+        ...withSelectedDocument(
+          persist({
+            nodes: nextNodes,
+            edges: orientEdgesToNodePositions(nextNodes, [
+              ...state.edges,
+              ...copiedEdges,
+            ]),
+            documents: nextDocuments,
+            selectedDocumentId: idPairs[0]?.newDocumentId ?? state.selectedDocumentId,
+          },
+          state.ownerId,
+          ),
+        ),
+        expandedNodeIds: Array.from(new Set([...state.expandedNodeIds, nodeId])),
+      }
+    })
+  },
+
+  resetMapView: () => {
+    set((state) => ({
+      focusedNodeId: state.nodes[0]?.id ?? null,
+      mapViewNodeId: state.nodes[0]?.id ?? null,
+    }))
+  },
+
   saveSnapshot: async () => {
     const state = get()
     await saveMindMapSnapshot(
@@ -641,8 +1091,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
   },
 
   setActiveOwner: async (ownerId) => {
-    if (ownerId === get().ownerId) {
-      await get().hydrateSnapshot()
+    const state = get()
+
+    if (ownerId === state.ownerId && state.isOwnerLoaded) {
       return
     }
 
@@ -650,12 +1101,41 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
       ...state,
       ...withSelectedDocument(initialSnapshot),
       copiedNodeIds: [],
+      expandedNodeIds: initialSnapshot.nodes[0]?.id
+        ? [initialSnapshot.nodes[0].id]
+        : [],
       focusedNodeId: null,
+      isOwnerLoaded: false,
       isDocumentModalOpen: false,
+      mapViewNodeId: initialSnapshot.nodes[0]?.id ?? null,
       ownerId,
     }))
 
     await get().hydrateSnapshot()
+  },
+
+  setMapViewNode: (nodeId) => {
+    set((state) => ({
+      expandedNodeIds: nodeId
+        ? Array.from(new Set([...state.expandedNodeIds, nodeId]))
+        : state.expandedNodeIds,
+      focusedNodeId: nodeId,
+      mapViewNodeId: nodeId,
+    }))
+  },
+
+  toggleMapViewNode: (nodeId) => {
+    set((state) => {
+      const isExpanded = state.expandedNodeIds.includes(nodeId)
+
+      return {
+        expandedNodeIds: isExpanded
+          ? state.expandedNodeIds.filter((id) => id !== nodeId)
+          : [...state.expandedNodeIds, nodeId],
+        focusedNodeId: nodeId,
+        mapViewNodeId: nodeId,
+      }
+    })
   },
 
   toggleAutoSave: () => {

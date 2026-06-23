@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { hasMindMapSnapshot } from './api/documentApi'
 import { AuthPage } from './pages/AuthPage'
 import { MindMapPage } from './pages/MindMapPage'
 import { useAuthStore } from './stores/authStore'
@@ -73,20 +72,7 @@ function App() {
       return
     }
 
-    let isMounted = true
-
-    void hasMindMapSnapshot(googleUser.id)
-      .then((hasSnapshot) => {
-        if (!isMounted) {
-          return
-        }
-
-        navigate(hasSnapshot ? '/workspace' : '/workspace/new', true)
-      })
-
-    return () => {
-      isMounted = false
-    }
+    navigate('/workspace', true)
   }, [googleUser, isLoading, path])
 
   if (isLoading) {

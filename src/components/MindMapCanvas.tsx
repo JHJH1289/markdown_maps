@@ -21,6 +21,7 @@ import {
 import { MindMapNode } from './MindMapNode'
 import { useMindMapStore } from '../stores/mindmapStore'
 import type { MindMapFlowNode, ThemeMode } from '../types/mindmap'
+import { getVisibleMindMap } from '../utils/mindMapVisibility'
 
 type ContextMenuState =
   | {
@@ -78,10 +79,14 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const nodes = useMindMapStore((state) => state.nodes)
   const storedEdges = useMindMapStore((state) => state.edges)
   const addNodeAtPosition = useMindMapStore((state) => state.addNodeAtPosition)
+  const addChildNode = useMindMapStore((state) => state.addChildNode)
+  const addParentNode = useMindMapStore((state) => state.addParentNode)
+  const addSiblingNode = useMindMapStore((state) => state.addSiblingNode)
   const arrangeNodeBranch = useMindMapStore((state) => state.arrangeNodeBranch)
   const clearFocusedNode = useMindMapStore((state) => state.clearFocusedNode)
   const copySelectedNodes = useMindMapStore((state) => state.copySelectedNodes)
   const deleteEdge = useMindMapStore((state) => state.deleteEdge)
+  const deleteChildNodes = useMindMapStore((state) => state.deleteChildNodes)
   const deleteNode = useMindMapStore((state) => state.deleteNode)
   const deleteSelectedElements = useMindMapStore(
     (state) => state.deleteSelectedElements,
@@ -95,14 +100,21 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const selectNodesInRect = useMindMapStore((state) => state.selectNodesInRect)
   const autoSaveEnabled = useMindMapStore((state) => state.autoSaveEnabled)
   const focusedNodeId = useMindMapStore((state) => state.focusedNodeId)
+  const expandedNodeIds = useMindMapStore((state) => state.expandedNodeIds)
+  const mapViewNodeId = useMindMapStore((state) => state.mapViewNodeId)
+  const toggleMapViewNode = useMindMapStore((state) => state.toggleMapViewNode)
   const toggleAutoSave = useMindMapStore((state) => state.toggleAutoSave)
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ mindMapNode: MindMapNode }), [])
+  const visibleMap = useMemo(
+    () => getVisibleMindMap(nodes, storedEdges, mapViewNodeId, expandedNodeIds),
+    [expandedNodeIds, mapViewNodeId, nodes, storedEdges],
+  )
   const edgeColor = theme === 'dark' ? '#78b69a' : '#4f6f86'
   const selectedEdgeColor = theme === 'dark' ? '#f4d35e' : '#b7791f'
   const edges = useMemo(
     () =>
-      storedEdges.map((edge) => ({
+      visibleMap.edges.map((edge) => ({
         ...edge,
         animated: false,
         interactionWidth: 34,
@@ -112,7 +124,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
           strokeWidth: edge.selected ? 3 : 2,
         },
       })),
-    [edgeColor, selectedEdgeColor, storedEdges],
+    [edgeColor, selectedEdgeColor, visibleMap.edges],
   )
   const defaultEdgeOptions = useMemo<DefaultEdgeOptions>(
     () => ({
@@ -248,6 +260,13 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
       return
     }
 
+    toggleMapViewNode(node.id)
+  }
+
+  const handleNodeDoubleClick: NodeMouseHandler<MindMapFlowNode> = (
+    _event,
+    node,
+  ) => {
     selectDocument(node.data.documentId)
   }
 
@@ -340,6 +359,42 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
     setContextMenu(null)
   }
 
+  const removeChildNodes = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    deleteChildNodes(contextMenu.nodeId)
+    setContextMenu(null)
+  }
+
+  const addSiblingFromMenu = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    addSiblingNode(contextMenu.nodeId)
+    setContextMenu(null)
+  }
+
+  const addChildFromMenu = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    addChildNode(contextMenu.nodeId)
+    setContextMenu(null)
+  }
+
+  const addParentFromMenu = () => {
+    if (!contextMenu?.nodeId) {
+      return
+    }
+
+    addParentNode(contextMenu.nodeId)
+    setContextMenu(null)
+  }
+
   const arrangeNodeLeft = () => {
     if (!contextMenu?.nodeId) {
       return
@@ -383,7 +438,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
         isValidConnection={() => true}
         minZoom={0.001}
         multiSelectionKeyCode={null}
-        nodes={nodes}
+        nodes={visibleMap.nodes}
         nodesDraggable
         nodeTypes={nodeTypes}
         onConnect={onConnect}
@@ -391,6 +446,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         onNodesChange={onNodesChange}
@@ -461,19 +517,41 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           {contextMenu.edgeId ? (
-            <button onClick={removeEdge} type="button">
+            <button className="context-menu-danger" onClick={removeEdge} type="button">
               {'\uc120 \uc0ad\uc81c'}
             </button>
           ) : contextMenu.nodeId ? (
             <>
+              <button
+                className="context-menu-danger"
+                onClick={removeNode}
+                type="button"
+              >
+                {'\ud604\uc7ac \ub178\ub4dc\ub9cc \uc0ad\uc81c'}
+              </button>
+              <button
+                className="context-menu-danger"
+                onClick={removeChildNodes}
+                type="button"
+              >
+                {'\uc790\uc2dd \ub178\ub4dc \uc77c\uad04\uc0ad\uc81c'}
+              </button>
+              <div className="context-menu-separator" />
               <button onClick={arrangeNodeLeft} type="button">
                 {'\uc88c\ub85c \uc815\ub82c'}
               </button>
               <button onClick={arrangeNodeRight} type="button">
                 {'\uc6b0\ub85c \uc815\ub82c'}
               </button>
-              <button onClick={removeNode} type="button">
-                {'\ub178\ub4dc \uc0ad\uc81c'}
+              <div className="context-menu-separator" />
+              <button onClick={addSiblingFromMenu} type="button">
+                {'\ud615\uc81c \ub178\ub4dc \uc0bd\uc785'}
+              </button>
+              <button onClick={addChildFromMenu} type="button">
+                {'\uc790\uc2dd \ub178\ub4dc \uc0bd\uc785'}
+              </button>
+              <button onClick={addParentFromMenu} type="button">
+                {'\ubd80\ubaa8 \ub178\ub4dc \uc0bd\uc785'}
               </button>
             </>
           ) : (
