@@ -38,16 +38,16 @@ export function DocumentModal() {
       <div className="document-modal">
         <div className="panel-header">
           <div>
-            <p className="panel-kicker">마크다운 문서</p>
+            <p className="panel-kicker">{'\ub9c8\ud06c\ub2e4\uc6b4 \ubb38\uc11c'}</p>
             <h2 id="document-modal-title">{selectedDocument.title}</h2>
           </div>
           <button
-            aria-label="문서 편집기 닫기"
+            aria-label="close document editor"
             className="icon-button"
             onClick={closeDocument}
             type="button"
           >
-            닫기
+            {'\ub2eb\uae30'}
           </button>
         </div>
 

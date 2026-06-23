@@ -112,6 +112,7 @@ type MindMapState = MindMapSnapshot & {
   hydrateSnapshot: () => Promise<void>
   isDocumentModalOpen: boolean
   selectedDocument: MarkdownDocument | null
+  ownerId: string | null
   addNode: () => void
   addNodeAtPosition: (position: XYPosition) => void
   clearFocusedNode: () => void
@@ -126,12 +127,13 @@ type MindMapState = MindMapSnapshot & {
   onNodesChange: (changes: NodeChange<MindMapFlowNode>[]) => void
   pasteCopiedNodes: () => void
   selectDocument: (documentId: DocumentId) => void
+  setActiveOwner: (ownerId: string | null) => Promise<void>
   updateDocumentContent: (documentId: DocumentId, content: string) => void
   updateDocumentTitle: (documentId: DocumentId, title: string) => void
 }
 
-function persist(snapshot: MindMapSnapshot) {
-  saveMindMapSnapshot(snapshot)
+function persist(snapshot: MindMapSnapshot, ownerId: string | null) {
+  saveMindMapSnapshot(snapshot, ownerId)
   return snapshot
 }
 
@@ -172,9 +174,11 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
   copiedNodeIds: [],
   focusedNodeId: null,
   isDocumentModalOpen: false,
+  ownerId: null,
 
   hydrateSnapshot: async () => {
-    const snapshot = await loadMindMapSnapshot()
+    const ownerId = get().ownerId
+    const snapshot = await loadMindMapSnapshot(ownerId)
 
     if (snapshot) {
       set((state) => ({
@@ -223,7 +227,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
               },
             ],
             selectedDocumentId: documentId,
-          }),
+          },
+          state.ownerId,
+          ),
         ),
         isDocumentModalOpen: false,
       }
@@ -253,10 +259,12 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
       withSelectedDocument(
         persist({
           nodes: state.nodes,
-          edges: state.edges.filter((edge) => edge.id !== edgeId),
-          documents: state.documents,
-          selectedDocumentId: state.selectedDocumentId,
-        }),
+            edges: state.edges.filter((edge) => edge.id !== edgeId),
+            documents: state.documents,
+            selectedDocumentId: state.selectedDocumentId,
+          },
+          state.ownerId,
+          ),
       ),
     )
   },
@@ -280,7 +288,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
               ? state.documents.filter((doc) => doc.id !== targetNode.data.documentId)
               : state.documents,
             selectedDocumentId,
-          }),
+          },
+          state.ownerId,
+          ),
         ),
         isDocumentModalOpen:
           targetNode?.data.documentId === state.selectedDocumentId
@@ -329,7 +339,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
               (doc) => !removedDocumentIds.has(doc.id),
             ),
             selectedDocumentId,
-          }),
+          },
+          state.ownerId,
+          ),
         ),
         isDocumentModalOpen: selectedDocumentId ? state.isDocumentModalOpen : false,
       }
@@ -356,7 +368,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             edges: state.edges,
             documents: state.documents,
             selectedDocumentId: documentId,
-          }),
+          },
+          state.ownerId,
+          ),
         ),
         focusedNodeId: targetNode.id,
         isDocumentModalOpen: false,
@@ -378,7 +392,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: nextEdges,
           documents: state.documents,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
     )
   },
@@ -394,7 +410,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: nextEdges,
           documents: state.documents,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
     )
   },
@@ -410,7 +428,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: state.edges,
           documents: state.documents,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
     )
   },
@@ -504,7 +524,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: [...state.edges, ...copiedEdges],
           documents: nextDocuments,
           selectedDocumentId: idPairs[0]?.newDocumentId ?? state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       )
     })
   },
@@ -517,10 +539,30 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: state.edges,
           documents: state.documents,
           selectedDocumentId: documentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
       isDocumentModalOpen: true,
     }))
+  },
+
+  setActiveOwner: async (ownerId) => {
+    if (ownerId === get().ownerId) {
+      await get().hydrateSnapshot()
+      return
+    }
+
+    set((state) => ({
+      ...state,
+      ...withSelectedDocument(initialSnapshot),
+      copiedNodeIds: [],
+      focusedNodeId: null,
+      isDocumentModalOpen: false,
+      ownerId,
+    }))
+
+    await get().hydrateSnapshot()
   },
 
   updateDocumentContent: (documentId, content) => {
@@ -529,11 +571,13 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         persist({
           nodes: state.nodes,
           edges: state.edges,
-          documents: state.documents.map((doc) =>
+            documents: state.documents.map((doc) =>
             doc.id === documentId ? { ...doc, content, updatedAt: now() } : doc,
           ),
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
     )
   },
@@ -555,7 +599,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: state.edges,
           documents: nextDocuments,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       )
     })
   },

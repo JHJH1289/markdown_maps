@@ -1,10 +1,15 @@
 import type { MindMapSnapshot } from '../types/mindmap'
+import { supabase } from './supabaseClient'
 
 const STORAGE_KEY = 'markdown-maps:mvp'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
-export function loadCachedMindMapSnapshot(): MindMapSnapshot | null {
-  const rawValue = window.localStorage.getItem(STORAGE_KEY)
+function getStorageKey(ownerId?: string | null) {
+  return ownerId ? `${STORAGE_KEY}:${ownerId}` : STORAGE_KEY
+}
+
+export function loadCachedMindMapSnapshot(ownerId?: string | null): MindMapSnapshot | null {
+  const rawValue = window.localStorage.getItem(getStorageKey(ownerId))
 
   if (!rawValue) {
     return null
@@ -13,21 +18,48 @@ export function loadCachedMindMapSnapshot(): MindMapSnapshot | null {
   try {
     return JSON.parse(rawValue) as MindMapSnapshot
   } catch {
-    window.localStorage.removeItem(STORAGE_KEY)
+    window.localStorage.removeItem(getStorageKey(ownerId))
     return null
   }
 }
 
-function cacheMindMapSnapshot(snapshot: MindMapSnapshot) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
+function cacheMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
+  window.localStorage.setItem(getStorageKey(ownerId), JSON.stringify(snapshot))
 }
 
-export async function loadMindMapSnapshot(): Promise<MindMapSnapshot | null> {
+export async function loadMindMapSnapshot(
+  ownerId?: string | null,
+): Promise<MindMapSnapshot | null> {
+  if (supabase && ownerId) {
+    try {
+      const { data, error } = await supabase
+        .from('mind_map_snapshots')
+        .select('snapshot')
+        .eq('id', ownerId)
+        .maybeSingle()
+
+      if (error) {
+        throw error
+      }
+
+      const snapshot = data?.snapshot as MindMapSnapshot | undefined
+
+      if (snapshot) {
+        cacheMindMapSnapshot(snapshot, ownerId)
+        return snapshot
+      }
+
+      return loadCachedMindMapSnapshot(ownerId)
+    } catch {
+      return loadCachedMindMapSnapshot(ownerId)
+    }
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/mind-map`)
 
     if (response.status === 204) {
-      return loadCachedMindMapSnapshot()
+      return loadCachedMindMapSnapshot(ownerId)
     }
 
     if (!response.ok) {
@@ -35,15 +67,27 @@ export async function loadMindMapSnapshot(): Promise<MindMapSnapshot | null> {
     }
 
     const snapshot = (await response.json()) as MindMapSnapshot
-    cacheMindMapSnapshot(snapshot)
+    cacheMindMapSnapshot(snapshot, ownerId)
     return snapshot
   } catch {
-    return loadCachedMindMapSnapshot()
+    return loadCachedMindMapSnapshot(ownerId)
   }
 }
 
-export function saveMindMapSnapshot(snapshot: MindMapSnapshot) {
-  cacheMindMapSnapshot(snapshot)
+export function saveMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
+  cacheMindMapSnapshot(snapshot, ownerId)
+
+  if (supabase && ownerId) {
+    void supabase
+      .from('mind_map_snapshots')
+      .upsert({ id: ownerId, snapshot }, { onConflict: 'id' })
+      .then(({ error }) => {
+        if (error) {
+          cacheMindMapSnapshot(snapshot, ownerId)
+        }
+      })
+    return
+  }
 
   void fetch(`${API_BASE_URL}/api/mind-map`, {
     method: 'PUT',
@@ -52,6 +96,6 @@ export function saveMindMapSnapshot(snapshot: MindMapSnapshot) {
     },
     body: JSON.stringify(snapshot),
   }).catch(() => {
-    cacheMindMapSnapshot(snapshot)
+    cacheMindMapSnapshot(snapshot, ownerId)
   })
 }

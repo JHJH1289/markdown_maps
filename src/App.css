@@ -127,6 +127,115 @@ button:hover {
   color: #ffffff;
 }
 
+.floating-toolbar .secondary-button {
+  background: #ffffff;
+  color: var(--text-strong);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+}
+
+.auth-shell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    linear-gradient(135deg, rgba(33, 107, 165, 0.09), transparent 42%),
+    var(--surface);
+}
+
+.auth-panel {
+  display: grid;
+  gap: 18px;
+  width: min(420px, 100%);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(13, 24, 36, 0.16);
+}
+
+.auth-panel-static {
+  gap: 8px;
+}
+
+.auth-panel h1 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.auth-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f5f8fa;
+}
+
+.auth-tabs button {
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.auth-tabs button[aria-selected='true'] {
+  border-color: var(--border);
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(23, 38, 54, 0.08);
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.auth-field input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-strong);
+  font: inherit;
+  font-weight: 500;
+}
+
+.auth-field input:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(33, 107, 165, 0.14);
+}
+
+.auth-error {
+  padding: 10px 12px;
+  border: 1px solid #e0b4b4;
+  border-radius: 7px;
+  background: #fff4f4;
+  color: #8f2f2f;
+  font-size: 13px;
+}
+
+.auth-submit {
+  min-height: 44px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .mind-map-node {
   min-width: 176px;
   padding: 14px 16px;

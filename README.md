@@ -55,3 +55,15 @@ cd backend
 ```
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` on the backend only. Do not put it in Vite env vars or frontend code.
+
+## Supabase Auth in the web app
+
+The Vite app can also sign users in directly with Supabase Auth and save one mind map snapshot per user. Run the migration above so the row-level security policies are installed, then set these frontend environment variables:
+
+```powershell
+$env:VITE_SUPABASE_URL = "https://oxufnvvzgnxsveukeajm.supabase.co"
+$env:VITE_SUPABASE_ANON_KEY = "<anon-public-key>"
+npm run dev
+```
+
+For hosted deployments, add the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values in the hosting provider's environment settings. The app uses `auth.uid()` as the snapshot row id, so each logged-in user can only read and update their own data.

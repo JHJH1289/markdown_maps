@@ -35,9 +35,9 @@ export function TitleSearch() {
   return (
     <form className="title-search" onSubmit={handleSubmit} role="search">
       <input
-        aria-label="문서 제목 검색"
+        aria-label="document title search"
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="제목 검색"
+        placeholder={'\uc81c\ubaa9 \uac80\uc0c9'}
         type="search"
         value={query}
       />
