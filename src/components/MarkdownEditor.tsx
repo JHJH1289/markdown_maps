@@ -17,7 +17,7 @@ export function MarkdownEditor({
   return (
     <div className="editor-stack" data-color-mode={theme}>
       <input
-        aria-label="문서 제목"
+        aria-label="Document title"
         className="title-input"
         onChange={(event) => onTitleChange(event.target.value)}
         value={document.title}

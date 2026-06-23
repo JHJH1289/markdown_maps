@@ -77,3 +77,53 @@ npm run dev
 ```
 
 For hosted deployments, add the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values in the hosting provider's environment settings. The app uses `auth.uid()` as the snapshot row id, so each logged-in user can only read and update their own data.
+
+## Free-first deployment
+
+Recommended low-cost deployment shape:
+
+- Frontend: Vercel
+- Backend: Google Cloud Run
+- Durable online storage: Supabase storage mode, or another managed store later
+
+The backend can run with the JSON storage mode on Cloud Run, but Cloud Run container files are ephemeral. Use JSON mode for a quick demo only. For durable online data, set `STORAGE_BACKEND=supabase` and provide the Supabase backend credentials as Cloud Run environment variables.
+
+### Backend on Cloud Run
+
+The backend Docker image is defined in `backend/Dockerfile`. The app reads Cloud Run's `PORT` environment variable via `server.port=${PORT:8080}`.
+
+From the `backend` directory:
+
+```powershell
+gcloud run deploy markdown-maps-backend `
+  --source . `
+  --region asia-northeast3 `
+  --allow-unauthenticated `
+  --set-env-vars "STORAGE_BACKEND=json,CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://*.vercel.app"
+```
+
+After Vercel gives you the final frontend URL, update CORS:
+
+```powershell
+gcloud run services update markdown-maps-backend `
+  --region asia-northeast3 `
+  --update-env-vars "CORS_ALLOWED_ORIGIN_PATTERNS=https://your-project.vercel.app,http://localhost:*,http://127.0.0.1:*"
+```
+
+For Supabase-backed durable storage:
+
+```powershell
+gcloud run services update markdown-maps-backend `
+  --region asia-northeast3 `
+  --update-env-vars "STORAGE_BACKEND=supabase,SUPABASE_URL=https://your-project.supabase.co,SUPABASE_SERVICE_ROLE_KEY=<service-role-key>,SUPABASE_SNAPSHOT_ID=default"
+```
+
+### Frontend on Vercel
+
+Set this Vercel environment variable before the production build:
+
+```text
+VITE_API_BASE_URL=https://your-cloud-run-service-url
+```
+
+Then deploy the repository root to Vercel. The Vercel settings are in `vercel.json`.

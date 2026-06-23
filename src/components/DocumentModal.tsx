@@ -8,9 +8,9 @@ type DocumentModalProps = {
 }
 
 const statusOptions: Array<{ label: string; value: MindMapNodeStatus }> = [
-  { label: '숨김', value: 'hidden' },
-  { label: '초안', value: 'draft' },
-  { label: '완료', value: 'ready' },
+  { label: '\uc228\uae40', value: 'hidden' },
+  { label: '\ucd08\uc548', value: 'draft' },
+  { label: '\uc644\ub8cc', value: 'ready' },
 ]
 
 export function DocumentModal({ theme }: DocumentModalProps) {
@@ -59,21 +59,11 @@ export function DocumentModal({ theme }: DocumentModalProps) {
             <p className="panel-kicker">{'\ub9c8\ud06c\ub2e4\uc6b4 \ubb38\uc11c'}</p>
             <h2 id="document-modal-title">{selectedDocument.title}</h2>
           </div>
-<<<<<<< HEAD
-          <button
-            aria-label="close document editor"
-            className="icon-button"
-            onClick={closeDocument}
-            type="button"
-          >
-            {'\ub2eb\uae30'}
-          </button>
-=======
           <div className="modal-actions">
             <label className="status-select">
-              <span>상태</span>
+              <span>{'\uc0c1\ud0dc'}</span>
               <select
-                aria-label="노드 상태"
+                aria-label="Node status"
                 onChange={(event) =>
                   updateDocumentStatus(
                     selectedDocument.id,
@@ -90,15 +80,14 @@ export function DocumentModal({ theme }: DocumentModalProps) {
               </select>
             </label>
             <button
-              aria-label="문서 편집기 닫기"
+              aria-label="Close document editor"
               className="icon-button"
               onClick={closeDocument}
               type="button"
             >
-              닫기
+              {'\ub2eb\uae30'}
             </button>
           </div>
->>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
         </div>
 
         <MarkdownEditor

@@ -142,17 +142,12 @@ type MindMapState = MindMapSnapshot & {
   updateDocumentTitle: (documentId: DocumentId, title: string) => void
 }
 
-<<<<<<< HEAD
-function persist(snapshot: MindMapSnapshot, ownerId: string | null) {
-  saveMindMapSnapshot(snapshot, ownerId)
-=======
 function isMindMapNodeStatus(value: unknown): value is MindMapNodeStatus {
   return value === 'hidden' || value === 'draft' || value === 'ready'
 }
 
-function persist(snapshot: MindMapSnapshot) {
-  saveMindMapSnapshot(snapshot)
->>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
+function persist(snapshot: MindMapSnapshot, ownerId: string | null) {
+  saveMindMapSnapshot(snapshot, ownerId)
   return snapshot
 }
 
@@ -360,7 +355,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: state.edges,
           documents: state.documents,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       )
     })
   },
@@ -723,7 +720,9 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           edges: state.edges,
           documents: state.documents,
           selectedDocumentId: state.selectedDocumentId,
-        }),
+        },
+        state.ownerId,
+        ),
       ),
     )
   },

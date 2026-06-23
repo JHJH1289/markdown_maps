@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-=======
 import { useEffect, useState } from 'react'
->>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
 import { Panel } from '@xyflow/react'
 import { DocumentModal } from '../components/DocumentModal'
 import { MindMapCanvas } from '../components/MindMapCanvas'
 import { TitleSearch } from '../components/TitleSearch'
-import { useAuthStore } from '../stores/authStore'
 import { useMindMapStore } from '../stores/mindmapStore'
 import type { ThemeMode } from '../types/mindmap'
 
@@ -23,11 +19,6 @@ function getInitialTheme(): ThemeMode {
 }
 
 export function MindMapPage() {
-<<<<<<< HEAD
-  const addNode = useMindMapStore((state) => state.addNode)
-  const signOut = useAuthStore((state) => state.signOut)
-  const user = useAuthStore((state) => state.user)
-=======
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const autoArrangeNodes = useMindMapStore((state) => state.autoArrangeNodes)
   const hydrateSnapshot = useMindMapStore((state) => state.hydrateSnapshot)
@@ -36,52 +27,35 @@ export function MindMapPage() {
   useEffect(() => {
     void hydrateSnapshot()
   }, [hydrateSnapshot])
->>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
   }, [theme])
 
   return (
-<<<<<<< HEAD
-    <main className="app-shell">
-      <section className="map-workspace" aria-label="mind map workspace">
-        <MindMapCanvas />
-        <Panel className="floating-toolbar" position="top-left">
-          <div>
-            <p>Markdown Maps</p>
-            <strong>{user?.email ?? 'Workspace'}</strong>
-          </div>
-          <button onClick={addNode} type="button">
-            {'\uc0c8 \ub178\ub4dc'}
-          </button>
-          <button className="secondary-button" onClick={signOut} type="button">
-            {'\ub85c\uadf8\uc544\uc6c3'}
-=======
     <main className={`app-shell theme-${theme}`}>
-      <section className="map-workspace" aria-label="마인드맵 작업공간">
+      <section className="map-workspace" aria-label="Mind map workspace">
         <MindMapCanvas theme={theme} />
         <Panel className="floating-toolbar" position="top-left">
           <div>
-            <p>Markdown Map</p>
-            <strong>마인드맵 문서 작업공간</strong>
+            <p>Markdown Maps</p>
+            <strong>JSON workspace</strong>
           </div>
           <button
-            aria-label="노드 자동 정렬"
+            aria-label="Auto arrange nodes"
             className="arrange-button"
             onClick={autoArrangeNodes}
             type="button"
           >
-            자동 정렬
+            Auto arrange
           </button>
           <button
-            aria-label={`${nextTheme === 'dark' ? '어두운' : '밝은'} 테마로 변경`}
+            aria-label={`Switch to ${nextTheme} theme`}
             className="theme-toggle"
             onClick={() => setTheme(nextTheme)}
             type="button"
           >
-            {theme === 'light' ? '다크' : '라이트'}
->>>>>>> 9ef15378c4422266d95da0ea4cc428520b4609e2
+            {theme === 'light' ? 'Dark' : 'Light'}
           </button>
         </Panel>
         <Panel className="search-panel" position="top-right">
