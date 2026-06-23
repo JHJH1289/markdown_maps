@@ -1,13 +1,9 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { MindMapFlowNode } from '../types/mindmap'
 
-const statusLabels = {
-  draft: '\ucd08\uc548',
-  hidden: '',
-  ready: '\uc644\ub8cc',
-}
-
 export function MindMapNode({ data, selected }: NodeProps<MindMapFlowNode>) {
+  const statusLabel = data.status.trim()
+
   return (
     <div className={selected ? 'mind-map-node selected' : 'mind-map-node'}>
       <Handle
@@ -58,9 +54,7 @@ export function MindMapNode({ data, selected }: NodeProps<MindMapFlowNode>) {
         position={Position.Left}
         type="source"
       />
-      {data.status !== 'hidden' && (
-        <div className="node-kicker">{statusLabels[data.status]}</div>
-      )}
+      {statusLabel && <div className="node-kicker">{statusLabel}</div>}
       <div className="node-title">{data.title}</div>
     </div>
   )

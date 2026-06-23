@@ -112,6 +112,7 @@ const initialSnapshot: MindMapSnapshot = {
 }
 
 type MindMapState = MindMapSnapshot & {
+  autoSaveEnabled: boolean
   copiedNodeIds: string[]
   focusedNodeId: string | null
   hydrateSnapshot: () => Promise<void>
@@ -132,18 +133,16 @@ type MindMapState = MindMapSnapshot & {
   onEdgesChange: (changes: EdgeChange<MindMapFlowEdge>[]) => void
   onNodesChange: (changes: NodeChange<MindMapFlowNode>[]) => void
   pasteCopiedNodes: () => void
+  saveSnapshot: () => void
   selectDocument: (documentId: DocumentId) => void
   setActiveOwner: (ownerId: string | null) => Promise<void>
+  toggleAutoSave: () => void
   updateDocumentContent: (documentId: DocumentId, content: string) => void
   updateDocumentStatus: (
     documentId: DocumentId,
     status: MindMapNodeStatus,
   ) => void
   updateDocumentTitle: (documentId: DocumentId, title: string) => void
-}
-
-function isMindMapNodeStatus(value: unknown): value is MindMapNodeStatus {
-  return value === 'hidden' || value === 'draft' || value === 'ready'
 }
 
 function persist(snapshot: MindMapSnapshot, ownerId: string | null) {
@@ -167,7 +166,7 @@ function normalizeSnapshot(snapshot: MindMapSnapshot): MindMapSnapshot {
       data: {
         ...node.data,
         title: legacyTitles[node.data.title] ?? node.data.title,
-        status: isMindMapNodeStatus(node.data.status) ? node.data.status : 'draft',
+        status: typeof node.data.status === 'string' ? node.data.status : 'draft',
       },
     })),
     edges: snapshot.edges.map((edge) => ({
@@ -186,6 +185,7 @@ const bootSnapshot = normalizeSnapshot(loadCachedMindMapSnapshot() ?? initialSna
 
 export const useMindMapStore = create<MindMapState>((set, get) => ({
   ...withSelectedDocument(bootSnapshot),
+  autoSaveEnabled: true,
   copiedNodeIds: [],
   focusedNodeId: null,
   isDocumentModalOpen: false,
@@ -657,6 +657,16 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     })
   },
 
+  saveSnapshot: () => {
+    const state = get()
+    saveMindMapSnapshot({
+      nodes: state.nodes,
+      edges: state.edges,
+      documents: state.documents,
+      selectedDocumentId: state.selectedDocumentId,
+    }, state.ownerId)
+  },
+
   selectDocument: (documentId) => {
     set((state) => ({
       ...withSelectedDocument(
@@ -689,6 +699,10 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     }))
 
     await get().hydrateSnapshot()
+  },
+
+  toggleAutoSave: () => {
+    set((state) => ({ autoSaveEnabled: !state.autoSaveEnabled }))
   },
 
   updateDocumentContent: (documentId, content) => {

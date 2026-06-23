@@ -23,7 +23,7 @@ export function MarkdownEditor({
         value={document.title}
       />
       <MDEditor
-        height={460}
+        height={560}
         onChange={(value) => onChange(value ?? '')}
         preview="edit"
         value={document.content}

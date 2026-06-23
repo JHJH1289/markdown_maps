@@ -1,23 +1,18 @@
 import { useEffect } from 'react'
 import { MarkdownEditor } from './MarkdownEditor'
 import { useMindMapStore } from '../stores/mindmapStore'
-import type { MindMapNodeStatus, ThemeMode } from '../types/mindmap'
+import type { ThemeMode } from '../types/mindmap'
 
 type DocumentModalProps = {
   theme: ThemeMode
 }
-
-const statusOptions: Array<{ label: string; value: MindMapNodeStatus }> = [
-  { label: '\uc228\uae40', value: 'hidden' },
-  { label: '\ucd08\uc548', value: 'draft' },
-  { label: '\uc644\ub8cc', value: 'ready' },
-]
 
 export function DocumentModal({ theme }: DocumentModalProps) {
   const isOpen = useMindMapStore((state) => state.isDocumentModalOpen)
   const selectedDocument = useMindMapStore((state) => state.selectedDocument)
   const nodes = useMindMapStore((state) => state.nodes)
   const closeDocument = useMindMapStore((state) => state.closeDocument)
+  const saveSnapshot = useMindMapStore((state) => state.saveSnapshot)
   const updateDocumentContent = useMindMapStore((state) => state.updateDocumentContent)
   const updateDocumentStatus = useMindMapStore((state) => state.updateDocumentStatus)
   const updateDocumentTitle = useMindMapStore((state) => state.updateDocumentTitle)
@@ -62,23 +57,18 @@ export function DocumentModal({ theme }: DocumentModalProps) {
           <div className="modal-actions">
             <label className="status-select">
               <span>{'\uc0c1\ud0dc'}</span>
-              <select
+              <input
                 aria-label="Node status"
                 onChange={(event) =>
-                  updateDocumentStatus(
-                    selectedDocument.id,
-                    event.target.value as MindMapNodeStatus,
-                  )
+                  updateDocumentStatus(selectedDocument.id, event.target.value)
                 }
+                placeholder="Label"
                 value={selectedStatus}
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
+            <button className="save-button" onClick={saveSnapshot} type="button">
+              Save
+            </button>
             <button
               aria-label="Close document editor"
               className="icon-button"

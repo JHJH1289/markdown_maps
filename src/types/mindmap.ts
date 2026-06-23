@@ -16,7 +16,7 @@ export type MindMapNodeData = {
   status: MindMapNodeStatus
 }
 
-export type MindMapNodeStatus = 'hidden' | 'draft' | 'ready'
+export type MindMapNodeStatus = string
 
 export type MindMapFlowNode = Node<MindMapNodeData, 'mindMapNode'>
 export type MindMapFlowEdge = Edge

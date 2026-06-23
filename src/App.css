@@ -375,13 +375,17 @@ button:disabled {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
-  width: min(920px, 100%);
+  width: min(1120px, calc(100vw - 56px));
+  min-width: min(720px, calc(100vw - 56px));
+  min-height: min(620px, calc(100svh - 56px));
+  max-width: calc(100vw - 56px);
   max-height: min(760px, calc(100svh - 56px));
   overflow: auto;
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--elevated);
+  resize: both;
   box-shadow: 0 24px 70px var(--modal-shadow);
 }
 
@@ -408,9 +412,10 @@ button:disabled {
   font-weight: 700;
 }
 
-.status-select select {
+.status-select input {
+  width: 120px;
   min-height: 38px;
-  padding: 0 34px 0 12px;
+  padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--elevated);
@@ -419,9 +424,16 @@ button:disabled {
   font-weight: 700;
 }
 
-.status-select select:focus {
+.status-select input:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(33, 107, 165, 0.14);
+}
+
+.save-button {
+  min-width: 62px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .panel-header h2 {
@@ -477,6 +489,37 @@ button:disabled {
   border-radius: 8px 8px 0 0;
 }
 
+.save-control-panel {
+  left: 0 !important;
+  bottom: 158px !important;
+  margin: 0 !important;
+}
+
+.save-toggle-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  height: 26px;
+  padding: 0;
+  border-color: var(--border);
+  border-radius: 4px;
+  background: var(--elevated);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.save-toggle-button[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+.save-toggle-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     min-height: 100svh;
@@ -512,7 +555,11 @@ button:disabled {
   }
 
   .document-modal {
+    width: calc(100vw - 24px);
+    min-width: 0;
+    min-height: 0;
     max-height: calc(100svh - 24px);
     padding: 18px;
+    resize: none;
   }
 }

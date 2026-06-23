@@ -20,8 +20,10 @@ function getInitialTheme(): ThemeMode {
 
 export function MindMapPage() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
+  const autoSaveEnabled = useMindMapStore((state) => state.autoSaveEnabled)
   const autoArrangeNodes = useMindMapStore((state) => state.autoArrangeNodes)
   const hydrateSnapshot = useMindMapStore((state) => state.hydrateSnapshot)
+  const saveSnapshot = useMindMapStore((state) => state.saveSnapshot)
   const nextTheme = theme === 'light' ? 'dark' : 'light'
 
   useEffect(() => {
@@ -31,6 +33,15 @@ export function MindMapPage() {
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!autoSaveEnabled) {
+      return
+    }
+
+    const intervalId = window.setInterval(saveSnapshot, 5 * 60 * 1000)
+    return () => window.clearInterval(intervalId)
+  }, [autoSaveEnabled, saveSnapshot])
 
   return (
     <main className={`app-shell theme-${theme}`}>

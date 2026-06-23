@@ -6,6 +6,7 @@ import {
   ConnectionMode,
   Controls,
   MiniMap,
+  Panel,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
@@ -78,8 +79,11 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const onEdgesChange = useMindMapStore((state) => state.onEdgesChange)
   const onConnect = useMindMapStore((state) => state.onConnect)
   const pasteCopiedNodes = useMindMapStore((state) => state.pasteCopiedNodes)
+  const saveSnapshot = useMindMapStore((state) => state.saveSnapshot)
   const selectDocument = useMindMapStore((state) => state.selectDocument)
+  const autoSaveEnabled = useMindMapStore((state) => state.autoSaveEnabled)
   const focusedNodeId = useMindMapStore((state) => state.focusedNodeId)
+  const toggleAutoSave = useMindMapStore((state) => state.toggleAutoSave)
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ mindMapNode: MindMapNode }), [])
   const edges = useMemo(
@@ -275,6 +279,27 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
           variant={BackgroundVariant.Lines}
         />
         <Controls position="bottom-left" />
+        <Panel className="save-control-panel" position="bottom-left">
+          <button
+            aria-label={
+              autoSaveEnabled ? 'Turn autosave off' : 'Turn autosave on'
+            }
+            aria-pressed={autoSaveEnabled}
+            className="save-toggle-button"
+            onClick={() => {
+              if (!autoSaveEnabled) {
+                saveSnapshot()
+              }
+              toggleAutoSave()
+            }}
+            title={autoSaveEnabled ? 'Autosave on' : 'Autosave off'}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M5 3h12l2 2v16H5V3Zm2 2v5h9V5H7Zm0 14h10v-6H7v6Zm2-12h5V5H9v2Z" />
+            </svg>
+          </button>
+        </Panel>
         <MiniMap
           maskColor={
             theme === 'dark'
