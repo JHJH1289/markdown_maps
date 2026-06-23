@@ -153,9 +153,38 @@ button:hover {
   padding: 0 14px;
 }
 
+.floating-toolbar .save-button {
+  padding: 0 14px;
+}
+
 .floating-toolbar .secondary-button {
-  background: #ffffff;
+  padding: 0 14px;
+  background: var(--elevated);
   color: var(--text-strong);
+}
+
+.google-sign-in-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.google-sign-in {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+}
+
+.auth-status {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 button:disabled {
@@ -297,6 +326,19 @@ button:disabled {
   background: var(--accent);
 }
 
+.node-handle::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
 .node-handle.top {
   top: 0;
   left: 50%;
@@ -337,9 +379,35 @@ button:disabled {
   fill: currentColor;
 }
 
+.autosave-control-button {
+  color: var(--muted);
+}
+
+.autosave-control-button:hover {
+  color: var(--text-strong);
+}
+
+.autosave-control-button[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+.autosave-control-button svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
 .theme-dark .react-flow__selection {
   border-color: var(--accent);
   background: rgba(111, 191, 156, 0.14);
+}
+
+.right-drag-selection {
+  position: fixed;
+  z-index: 45;
+  border: 1px solid var(--accent);
+  background: rgba(111, 191, 156, 0.14);
+  pointer-events: none;
 }
 
 .context-menu {
@@ -489,36 +557,6 @@ button:disabled {
   border-radius: 8px 8px 0 0;
 }
 
-.save-control-panel {
-  left: 0 !important;
-  bottom: 158px !important;
-  margin: 0 !important;
-}
-
-.save-toggle-button {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  min-width: 26px;
-  min-height: 26px;
-  height: 26px;
-  padding: 0;
-  border-color: var(--border);
-  border-radius: 4px;
-  background: var(--elevated);
-  color: var(--muted);
-  box-shadow: none;
-}
-
-.save-toggle-button[aria-pressed='true'] {
-  color: var(--accent);
-}
-
-.save-toggle-button svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
 
 @media (max-width: 980px) {
   .app-shell {

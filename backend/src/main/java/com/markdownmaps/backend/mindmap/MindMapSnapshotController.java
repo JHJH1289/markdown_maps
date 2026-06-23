@@ -1,6 +1,7 @@
 package com.markdownmaps.backend.mindmap;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -13,14 +14,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class MindMapSnapshotController {
 
 	private final MindMapSnapshotService snapshotService;
+	private final MindMapOwnerResolver ownerResolver;
 
-	public MindMapSnapshotController(MindMapSnapshotService snapshotService) {
+	public MindMapSnapshotController(
+		MindMapSnapshotService snapshotService,
+		MindMapOwnerResolver ownerResolver
+	) {
 		this.snapshotService = snapshotService;
+		this.ownerResolver = ownerResolver;
 	}
 
 	@GetMapping
-	public ResponseEntity<JsonNode> getSnapshot() {
-		JsonNode snapshot = snapshotService.readSnapshot();
+	public ResponseEntity<JsonNode> getSnapshot(HttpServletRequest request) {
+		JsonNode snapshot = snapshotService.readSnapshot(ownerResolver.resolveOwnerId(request));
 
 		if (snapshot == null) {
 			return ResponseEntity.noContent().build();
@@ -30,7 +36,12 @@ public class MindMapSnapshotController {
 	}
 
 	@PutMapping
-	public ResponseEntity<JsonNode> saveSnapshot(@RequestBody JsonNode snapshot) {
-		return ResponseEntity.ok(snapshotService.writeSnapshot(snapshot));
+	public ResponseEntity<JsonNode> saveSnapshot(
+		HttpServletRequest request,
+		@RequestBody JsonNode snapshot
+	) {
+		return ResponseEntity.ok(
+			snapshotService.writeSnapshot(ownerResolver.resolveOwnerId(request), snapshot)
+		);
 	}
 }

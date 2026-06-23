@@ -8,8 +8,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record MindMapStorageProperties(
 	String storageBackend,
 	Path storagePath,
+	String defaultSnapshotId,
 	String supabaseUrl,
 	String supabaseServiceRoleKey,
-	String supabaseSnapshotId
+	String supabaseSnapshotId,
+	String googleClientId
 ) {
 }

@@ -17,9 +17,9 @@ public class MindMapSnapshotService {
 
 	private final ObjectMapper objectMapper;
 	private final RestClient supabaseClient;
+	private final String defaultSnapshotId;
 	private final Path storagePath;
 	private final String supabaseApiKey;
-	private final String supabaseSnapshotId;
 
 	public MindMapSnapshotService(
 		ObjectMapper objectMapper,
@@ -28,9 +28,13 @@ public class MindMapSnapshotService {
 		this.objectMapper = objectMapper;
 		this.storagePath = properties.storagePath();
 		this.supabaseApiKey = properties.supabaseServiceRoleKey();
-		this.supabaseSnapshotId = hasText(properties.supabaseSnapshotId())
-			? properties.supabaseSnapshotId()
-			: "default";
+		if (hasText(properties.defaultSnapshotId())) {
+			this.defaultSnapshotId = properties.defaultSnapshotId().trim();
+		} else if (hasText(properties.supabaseSnapshotId())) {
+			this.defaultSnapshotId = properties.supabaseSnapshotId().trim();
+		} else {
+			this.defaultSnapshotId = "default";
+		}
 		String storageBackend = hasText(properties.storageBackend())
 			? properties.storageBackend().trim().toLowerCase(Locale.ROOT)
 			: "json";
@@ -59,53 +63,60 @@ public class MindMapSnapshotService {
 			: null;
 	}
 
-	public JsonNode readSnapshot() {
+	public JsonNode readSnapshot(String ownerId) {
+		String snapshotId = normalizeSnapshotId(ownerId);
+
 		if (supabaseClient != null) {
-			JsonNode snapshot = readSupabaseSnapshot();
+			JsonNode snapshot = readSupabaseSnapshot(snapshotId);
 
 			if (snapshot != null) {
 				return snapshot;
 			}
 		}
 
-		if (!Files.exists(storagePath)) {
+		Path ownerStoragePath = resolveStoragePath(snapshotId);
+
+		if (!Files.exists(ownerStoragePath)) {
 			return null;
 		}
 
 		try {
-			return objectMapper.readTree(storagePath.toFile());
+			return objectMapper.readTree(ownerStoragePath.toFile());
 		} catch (IOException exception) {
 			throw new MindMapStorageException("Failed to read mind map snapshot", exception);
 		}
 	}
 
-	public JsonNode writeSnapshot(JsonNode snapshot) {
+	public JsonNode writeSnapshot(String ownerId, JsonNode snapshot) {
 		if (snapshot == null || !snapshot.isObject()) {
 			throw new IllegalArgumentException("Snapshot must be a JSON object");
 		}
 
+		String snapshotId = normalizeSnapshotId(ownerId);
+
 		if (supabaseClient != null) {
-			return writeSupabaseSnapshot(snapshot);
+			return writeSupabaseSnapshot(snapshotId, snapshot);
 		}
 
 		try {
-			Path parent = storagePath.getParent();
+			Path ownerStoragePath = resolveStoragePath(snapshotId);
+			Path parent = ownerStoragePath.getParent();
 			if (parent != null) {
 				Files.createDirectories(parent);
 			}
-			objectMapper.writerWithDefaultPrettyPrinter().writeValue(storagePath.toFile(), snapshot);
+			objectMapper.writerWithDefaultPrettyPrinter().writeValue(ownerStoragePath.toFile(), snapshot);
 			return snapshot;
 		} catch (IOException exception) {
 			throw new MindMapStorageException("Failed to write mind map snapshot", exception);
 		}
 	}
 
-	private JsonNode readSupabaseSnapshot() {
+	private JsonNode readSupabaseSnapshot(String snapshotId) {
 		try {
 			JsonNode rows = supabaseClient.get()
 				.uri(uriBuilder -> uriBuilder
 					.path("/rest/v1/mind_map_snapshots")
-					.queryParam("id", "eq." + supabaseSnapshotId)
+					.queryParam("id", "eq." + snapshotId)
 					.queryParam("select", "snapshot")
 					.build())
 				.retrieve()
@@ -121,9 +132,9 @@ public class MindMapSnapshotService {
 		}
 	}
 
-	private JsonNode writeSupabaseSnapshot(JsonNode snapshot) {
+	private JsonNode writeSupabaseSnapshot(String snapshotId, JsonNode snapshot) {
 		ObjectNode payload = objectMapper.createObjectNode();
-		payload.put("id", supabaseSnapshotId);
+		payload.put("id", snapshotId);
 		payload.set("snapshot", snapshot);
 
 		try {
@@ -146,6 +157,35 @@ public class MindMapSnapshotService {
 		} catch (RestClientException exception) {
 			throw new MindMapStorageException("Failed to write Supabase mind map snapshot", exception);
 		}
+	}
+
+	private String normalizeSnapshotId(String ownerId) {
+		return hasText(ownerId) ? ownerId.trim() : defaultSnapshotId;
+	}
+
+	private Path resolveStoragePath(String snapshotId) {
+		if (snapshotId.equals(defaultSnapshotId)) {
+			return storagePath;
+		}
+
+		Path parent = storagePath.getParent();
+		String fileName = storagePath.getFileName().toString();
+		int extensionStart = fileName.lastIndexOf('.');
+		String baseName = extensionStart > 0 ? fileName.substring(0, extensionStart) : fileName;
+		String extension = extensionStart > 0 ? fileName.substring(extensionStart) : ".json";
+		String ownerFileName = "%s-%s%s".formatted(
+			baseName,
+			toStorageSafeId(snapshotId),
+			extension
+		);
+
+		return parent == null ? Path.of(ownerFileName) : parent.resolve(ownerFileName);
+	}
+
+	private static String toStorageSafeId(String value) {
+		String safeValue = value.replaceAll("[^A-Za-z0-9._-]", "_");
+
+		return safeValue.isBlank() ? "default" : safeValue;
 	}
 
 	private static boolean hasText(String value) {

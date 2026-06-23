@@ -5,8 +5,8 @@ import {
   BackgroundVariant,
   ConnectionMode,
   Controls,
+  ControlButton,
   MiniMap,
-  Panel,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
@@ -46,6 +46,12 @@ type ContextMenuState =
     }
 
 type PaneContextMenuEvent = MouseEvent<Element> | globalThis.MouseEvent
+type RightDragSelection = {
+  currentX: number
+  currentY: number
+  startX: number
+  startY: number
+}
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
@@ -63,7 +69,11 @@ type MindMapCanvasInnerProps = {
 
 function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [rightDragSelection, setRightDragSelection] =
+    useState<RightDragSelection | null>(null)
   const draggedNodeIdRef = useRef<string | null>(null)
+  const rightDragSelectionRef = useRef<RightDragSelection | null>(null)
+  const suppressNextContextMenuRef = useRef(false)
   const { getNode, screenToFlowPosition, setCenter } = useReactFlow()
   const nodes = useMindMapStore((state) => state.nodes)
   const storedEdges = useMindMapStore((state) => state.edges)
@@ -81,29 +91,36 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
   const pasteCopiedNodes = useMindMapStore((state) => state.pasteCopiedNodes)
   const saveSnapshot = useMindMapStore((state) => state.saveSnapshot)
   const selectDocument = useMindMapStore((state) => state.selectDocument)
+  const selectNodesInRect = useMindMapStore((state) => state.selectNodesInRect)
   const autoSaveEnabled = useMindMapStore((state) => state.autoSaveEnabled)
   const focusedNodeId = useMindMapStore((state) => state.focusedNodeId)
   const toggleAutoSave = useMindMapStore((state) => state.toggleAutoSave)
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ mindMapNode: MindMapNode }), [])
+  const edgeColor = theme === 'dark' ? '#78b69a' : '#4f6f86'
+  const selectedEdgeColor = theme === 'dark' ? '#f4d35e' : '#b7791f'
   const edges = useMemo(
     () =>
       storedEdges.map((edge) => ({
         ...edge,
         animated: false,
+        interactionWidth: 34,
+        selectable: true,
         style: {
-          stroke: theme === 'dark' ? '#78b69a' : '#4f6f86',
-          strokeWidth: 2,
+          stroke: edge.selected ? selectedEdgeColor : edgeColor,
+          strokeWidth: edge.selected ? 3 : 2,
         },
       })),
-    [storedEdges, theme],
+    [edgeColor, selectedEdgeColor, storedEdges],
   )
   const defaultEdgeOptions = useMemo<DefaultEdgeOptions>(
     () => ({
       animated: false,
-      style: { stroke: theme === 'dark' ? '#78b69a' : '#4f6f86', strokeWidth: 2 },
+      interactionWidth: 34,
+      selectable: true,
+      style: { stroke: edgeColor, strokeWidth: 2 },
     }),
-    [theme],
+    [edgeColor],
   )
 
   useEffect(() => {
@@ -114,7 +131,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
 
       const isShortcut = event.ctrlKey || event.metaKey
 
-      if (event.key === 'Delete') {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault()
         deleteSelectedElements()
         return
@@ -138,6 +155,68 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [copySelectedNodes, deleteSelectedElements, pasteCopiedNodes])
+
+  useEffect(() => {
+    const handleMouseMove = (event: globalThis.MouseEvent) => {
+      const selection = rightDragSelectionRef.current
+
+      if (!selection) {
+        return
+      }
+
+      event.preventDefault()
+      const nextSelection = {
+        ...selection,
+        currentX: event.clientX,
+        currentY: event.clientY,
+      }
+      rightDragSelectionRef.current = nextSelection
+      setRightDragSelection(nextSelection)
+    }
+
+    const handleMouseUp = (event: globalThis.MouseEvent) => {
+      const selection = rightDragSelectionRef.current
+
+      if (!selection || event.button !== 2) {
+        return
+      }
+
+      const distance = Math.hypot(
+        selection.currentX - selection.startX,
+        selection.currentY - selection.startY,
+      )
+
+      if (distance > 6) {
+        const start = screenToFlowPosition({
+          x: selection.startX,
+          y: selection.startY,
+        })
+        const end = screenToFlowPosition({
+          x: selection.currentX,
+          y: selection.currentY,
+        })
+
+        selectNodesInRect({
+          maxX: Math.max(start.x, end.x),
+          maxY: Math.max(start.y, end.y),
+          minX: Math.min(start.x, end.x),
+          minY: Math.min(start.y, end.y),
+        })
+        suppressNextContextMenuRef.current = true
+      }
+
+      rightDragSelectionRef.current = null
+      setRightDragSelection(null)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [screenToFlowPosition, selectNodesInRect])
 
   useEffect(() => {
     if (!focusedNodeId) {
@@ -185,11 +264,41 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
 
   const handlePaneContextMenu = (event: PaneContextMenuEvent) => {
     event.preventDefault()
+
+    if (suppressNextContextMenuRef.current) {
+      suppressNextContextMenuRef.current = false
+      return
+    }
+
     setContextMenu({
       flowPosition: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
       x: event.clientX,
       y: event.clientY,
     })
+  }
+
+  const handleMouseDownCapture = (event: MouseEvent<Element>) => {
+    if (event.button !== 2) {
+      return
+    }
+
+    if (!(event.target instanceof HTMLElement)) {
+      return
+    }
+
+    if (!event.target.classList.contains('react-flow__pane')) {
+      return
+    }
+
+    const selection = {
+      currentX: event.clientX,
+      currentY: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+    }
+    rightDragSelectionRef.current = selection
+    setRightDragSelection(selection)
+    setContextMenu(null)
   }
 
   const handleNodeContextMenu: NodeMouseHandler<MindMapFlowNode> = (event, node) => {
@@ -245,7 +354,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
         className="mind-map-canvas"
         colorMode={theme}
         connectionLineStyle={{
-          stroke: theme === 'dark' ? '#78b69a' : '#4f6f86',
+          stroke: edgeColor,
           strokeWidth: 2,
         }}
         connectionMode={ConnectionMode.Loose}
@@ -266,6 +375,7 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         onNodesChange={onNodesChange}
+        onMouseDownCapture={handleMouseDownCapture}
         onPaneClick={() => setContextMenu(null)}
         onPaneContextMenu={handlePaneContextMenu}
         panOnDrag
@@ -278,14 +388,11 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
           gap={28}
           variant={BackgroundVariant.Lines}
         />
-        <Controls position="bottom-left" />
-        <Panel className="save-control-panel" position="bottom-left">
-          <button
-            aria-label={
-              autoSaveEnabled ? 'Turn autosave off' : 'Turn autosave on'
-            }
+        <Controls position="bottom-left">
+          <ControlButton
+            aria-label={autoSaveEnabled ? 'Turn autosave off' : 'Turn autosave on'}
             aria-pressed={autoSaveEnabled}
-            className="save-toggle-button"
+            className="autosave-control-button"
             onClick={() => {
               if (!autoSaveEnabled) {
                 saveSnapshot()
@@ -293,13 +400,12 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
               toggleAutoSave()
             }}
             title={autoSaveEnabled ? 'Autosave on' : 'Autosave off'}
-            type="button"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="M5 3h12l2 2v16H5V3Zm2 2v5h9V5H7Zm0 14h10v-6H7v6Zm2-12h5V5H9v2Z" />
             </svg>
-          </button>
-        </Panel>
+          </ControlButton>
+        </Controls>
         <MiniMap
           maskColor={
             theme === 'dark'
@@ -313,6 +419,22 @@ function MindMapCanvasInner({ theme }: MindMapCanvasInnerProps) {
           zoomable
         />
       </ReactFlow>
+
+      {rightDragSelection && (
+        <div
+          className="right-drag-selection"
+          style={{
+            height: Math.abs(
+              rightDragSelection.currentY - rightDragSelection.startY,
+            ),
+            left: Math.min(rightDragSelection.startX, rightDragSelection.currentX),
+            top: Math.min(rightDragSelection.startY, rightDragSelection.currentY),
+            width: Math.abs(
+              rightDragSelection.currentX - rightDragSelection.startX,
+            ),
+          }}
+        />
+      )}
 
       {contextMenu && (
         <div

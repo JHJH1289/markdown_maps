@@ -38,6 +38,14 @@ The backend serves:
 
 For the personal-tool workflow, snapshots are saved as one JSON document at `backend/data/mind-map.json` by default. Start the Vite dev server separately with `npm run dev`; Vite proxies `/api` to `http://localhost:8080`.
 
+The backend is ready for per-user snapshots. Until Google token validation is wired in, a request can pass `X-Mind-Map-Owner` to select a snapshot owner. Without that header, the backend uses `DEFAULT_SNAPSHOT_ID` / `SUPABASE_SNAPSHOT_ID` / `default`.
+
+```powershell
+Invoke-WebRequest `
+  -Uri "http://localhost:8080/api/mind-map" `
+  -Headers @{ "X-Mind-Map-Owner" = "google-user-id" }
+```
+
 You can move the JSON file without changing the frontend:
 
 ```powershell

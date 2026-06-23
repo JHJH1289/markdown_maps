@@ -1,17 +1,26 @@
-import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
-import { isSupabaseConfigured, supabase } from '../api/supabaseClient'
+
+export const GOOGLE_TOKEN_STORAGE_KEY = 'markdown-maps:google-id-token'
+const GOOGLE_USER_STORAGE_KEY = 'markdown-maps:google-user'
 
 type AuthMode = 'sign-in' | 'sign-up'
 
+export type GoogleUser = {
+  email: string
+  id: string
+  name: string
+  picture?: string
+}
+
 type AuthState = {
   errorMessage: string | null
+  googleIdToken: string | null
+  googleUser: GoogleUser | null
   isConfigured: boolean
   isLoading: boolean
   isSubmitting: boolean
-  session: Session | null
-  user: User | null
   initializeAuth: () => Promise<() => void>
+  setGoogleCredential: (credential: string) => void
   signInWithPassword: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   submitPasswordAuth: (
@@ -21,91 +30,100 @@ type AuthState = {
   ) => Promise<void>
 }
 
-function toAuthMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message
+function decodeGoogleCredential(credential: string): GoogleUser {
+  const [, payload] = credential.split('.')
+
+  if (!payload) {
+    throw new Error('Google credential payload is missing.')
   }
 
-  return '\uc694\uccad\uc744 \ucc98\ub9ac\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.'
+  const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+  const decodedPayload = JSON.parse(
+    window.atob(
+      normalizedPayload.padEnd(
+        normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+        '=',
+      ),
+    ),
+  ) as {
+    email?: string
+    name?: string
+    picture?: string
+    sub?: string
+  }
+
+  if (!decodedPayload.sub || !decodedPayload.email) {
+    throw new Error('Google credential is missing user information.')
+  }
+
+  return {
+    email: decodedPayload.email,
+    id: decodedPayload.sub,
+    name: decodedPayload.name ?? decodedPayload.email,
+    picture: decodedPayload.picture,
+  }
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+function loadStoredGoogleUser() {
+  const rawUser = window.localStorage.getItem(GOOGLE_USER_STORAGE_KEY)
+
+  if (!rawUser) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawUser) as GoogleUser
+  } catch {
+    window.localStorage.removeItem(GOOGLE_USER_STORAGE_KEY)
+    return null
+  }
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
   errorMessage: null,
-  isConfigured: isSupabaseConfigured,
+  googleIdToken: null,
+  googleUser: null,
+  isConfigured: Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID),
   isLoading: true,
   isSubmitting: false,
-  session: null,
-  user: null,
 
   initializeAuth: async () => {
-    if (!supabase) {
-      set({ isLoading: false })
-      return () => undefined
-    }
-
-    const { data, error } = await supabase.auth.getSession()
-
-    if (error) {
-      set({
-        errorMessage: toAuthMessage(error),
-        isLoading: false,
-        session: null,
-        user: null,
-      })
-    } else {
-      set({
-        errorMessage: null,
-        isLoading: false,
-        session: data.session,
-        user: data.session?.user ?? null,
-      })
-    }
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      set({
-        errorMessage: null,
-        session,
-        user: session?.user ?? null,
-      })
+    set({
+      googleIdToken: window.localStorage.getItem(GOOGLE_TOKEN_STORAGE_KEY),
+      googleUser: loadStoredGoogleUser(),
+      isLoading: false,
     })
 
-    return () => listener.subscription.unsubscribe()
+    return () => undefined
   },
 
-  signInWithPassword: async (email, password) => {
-    await get().submitPasswordAuth('sign-in', email, password)
+  setGoogleCredential: (credential) => {
+    try {
+      const googleUser = decodeGoogleCredential(credential)
+      window.localStorage.setItem(GOOGLE_TOKEN_STORAGE_KEY, credential)
+      window.localStorage.setItem(GOOGLE_USER_STORAGE_KEY, JSON.stringify(googleUser))
+      set({ errorMessage: null, googleIdToken: credential, googleUser })
+    } catch (error) {
+      set({
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : '\ub85c\uadf8\uc778 \uc815\ubcf4\ub97c \uc77d\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.',
+      })
+    }
+  },
+
+  signInWithPassword: async () => {
+    set({ errorMessage: 'Google \ub85c\uadf8\uc778\uc744 \uc0ac\uc6a9\ud558\uc138\uc694.' })
   },
 
   signOut: async () => {
-    if (!supabase) {
-      return
-    }
-
-    set({ errorMessage: null, isSubmitting: true })
-    const { error } = await supabase.auth.signOut()
-    set({ errorMessage: error ? toAuthMessage(error) : null, isSubmitting: false })
+    window.localStorage.removeItem(GOOGLE_TOKEN_STORAGE_KEY)
+    window.localStorage.removeItem(GOOGLE_USER_STORAGE_KEY)
+    set({ errorMessage: null, googleIdToken: null, googleUser: null })
   },
 
-  submitPasswordAuth: async (mode, email, password) => {
-    if (!supabase) {
-      set({
-        errorMessage:
-          'Supabase \ud658\uacbd \ubcc0\uc218\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.',
-      })
-      return
-    }
-
-    set({ errorMessage: null, isSubmitting: true })
-
-    const authRequest =
-      mode === 'sign-up'
-        ? supabase.auth.signUp({ email, password })
-        : supabase.auth.signInWithPassword({ email, password })
-    const { error } = await authRequest
-
-    set({
-      errorMessage: error ? toAuthMessage(error) : null,
-      isSubmitting: false,
-    })
+  submitPasswordAuth: async () => {
+    set({ errorMessage: 'Google \ub85c\uadf8\uc778\uc744 \uc0ac\uc6a9\ud558\uc138\uc694.' })
   },
 }))

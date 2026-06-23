@@ -1,5 +1,5 @@
 import type { MindMapSnapshot } from '../types/mindmap'
-import { supabase } from './supabaseClient'
+import { GOOGLE_TOKEN_STORAGE_KEY } from '../stores/authStore'
 
 const STORAGE_KEY = 'markdown-maps:mvp'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -27,36 +27,26 @@ function cacheMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null
   window.localStorage.setItem(getStorageKey(ownerId), JSON.stringify(snapshot))
 }
 
+function getRequestHeaders(ownerId?: string | null) {
+  const headers: Record<string, string> = {}
+  const googleIdToken = window.localStorage.getItem(GOOGLE_TOKEN_STORAGE_KEY)
+
+  if (googleIdToken) {
+    headers.Authorization = `Bearer ${googleIdToken}`
+  } else if (ownerId) {
+    headers['X-Mind-Map-Owner'] = ownerId
+  }
+
+  return headers
+}
+
 export async function loadMindMapSnapshot(
   ownerId?: string | null,
 ): Promise<MindMapSnapshot | null> {
-  if (supabase && ownerId) {
-    try {
-      const { data, error } = await supabase
-        .from('mind_map_snapshots')
-        .select('snapshot')
-        .eq('id', ownerId)
-        .maybeSingle()
-
-      if (error) {
-        throw error
-      }
-
-      const snapshot = data?.snapshot as MindMapSnapshot | undefined
-
-      if (snapshot) {
-        cacheMindMapSnapshot(snapshot, ownerId)
-        return snapshot
-      }
-
-      return loadCachedMindMapSnapshot(ownerId)
-    } catch {
-      return loadCachedMindMapSnapshot(ownerId)
-    }
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}/api/mind-map`)
+    const response = await fetch(`${API_BASE_URL}/api/mind-map`, {
+      headers: getRequestHeaders(ownerId),
+    })
 
     if (response.status === 204) {
       return loadCachedMindMapSnapshot(ownerId)
@@ -74,28 +64,35 @@ export async function loadMindMapSnapshot(
   }
 }
 
-export function saveMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
+export async function hasMindMapSnapshot(ownerId?: string | null) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/mind-map`, {
+      headers: getRequestHeaders(ownerId),
+    })
+
+    return response.ok && response.status !== 204
+  } catch {
+    return Boolean(loadCachedMindMapSnapshot(ownerId))
+  }
+}
+
+export async function saveMindMapSnapshot(snapshot: MindMapSnapshot, ownerId?: string | null) {
   cacheMindMapSnapshot(snapshot, ownerId)
 
-  if (supabase && ownerId) {
-    void supabase
-      .from('mind_map_snapshots')
-      .upsert({ id: ownerId, snapshot }, { onConflict: 'id' })
-      .then(({ error }) => {
-        if (error) {
-          cacheMindMapSnapshot(snapshot, ownerId)
-        }
-      })
-    return
-  }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/mind-map`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getRequestHeaders(ownerId),
+      },
+      body: JSON.stringify(snapshot),
+    })
 
-  void fetch(`${API_BASE_URL}/api/mind-map`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(snapshot),
-  }).catch(() => {
+    if (!response.ok) {
+      throw new Error(`Failed to save mind map snapshot: ${response.status}`)
+    }
+  } catch {
     cacheMindMapSnapshot(snapshot, ownerId)
-  })
+  }
 }

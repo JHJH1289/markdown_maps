@@ -26,26 +26,41 @@ function Invoke-Gcloud {
   }
 }
 
-$envFile = Join-Path $PSScriptRoot ".env.local"
-if (-not (Test-Path $envFile)) {
-  throw "Missing backend/.env.local"
-}
-
 $values = @{}
-Get-Content $envFile | ForEach-Object {
-  $line = $_.Trim()
-  if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
-    return
+
+foreach ($envFile in @(
+  (Join-Path (Split-Path $PSScriptRoot -Parent) ".env.local"),
+  (Join-Path $PSScriptRoot ".env.local")
+)) {
+  if (-not (Test-Path $envFile)) {
+    continue
   }
 
-  $parts = $line.Split("=", 2)
-  $values[$parts[0].Trim()] = $parts[1].Trim()
+  Get-Content $envFile | ForEach-Object {
+    $line = $_.Trim()
+    if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
+      return
+    }
+
+    $parts = $line.Split("=", 2)
+    $values[$parts[0].Trim()] = $parts[1].Trim()
+  }
 }
 
 foreach ($name in @("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY")) {
   if (-not $values[$name]) {
-    throw "Missing $name in backend/.env.local"
+    throw "Missing $name in .env.local or backend/.env.local"
   }
+}
+
+$googleClientId = if ($values["GOOGLE_CLIENT_ID"]) {
+  $values["GOOGLE_CLIENT_ID"]
+} else {
+  $values["VITE_GOOGLE_CLIENT_ID"]
+}
+
+if (-not $googleClientId) {
+  throw "Missing GOOGLE_CLIENT_ID or VITE_GOOGLE_CLIENT_ID in .env.local or backend/.env.local"
 }
 
 $snapshotId = if ($values["SUPABASE_SNAPSHOT_ID"]) { $values["SUPABASE_SNAPSHOT_ID"] } else { "default" }
@@ -56,6 +71,7 @@ $cloudRunEnv = @{
   SUPABASE_SERVICE_ROLE_KEY = $values["SUPABASE_SERVICE_ROLE_KEY"]
   SUPABASE_SNAPSHOT_ID = $snapshotId
   CORS_ALLOWED_ORIGIN_PATTERNS = $CorsAllowedOriginPatterns
+  GOOGLE_CLIENT_ID = $googleClientId
 }
 
 $cloudRunEnvFile = Join-Path ([System.IO.Path]::GetTempPath()) "markdown-maps-cloud-run-env-$([Guid]::NewGuid()).yaml"

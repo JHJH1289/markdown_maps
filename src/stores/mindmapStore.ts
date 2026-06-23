@@ -34,78 +34,34 @@ const text = {
   documentFallback: '\ubb38\uc11c',
   newNode: '\uc0c8 \ub178\ub4dc',
   newNodeBody: '\uc5ec\uae30\uc5d0 \ub0b4\uc6a9\uc744 \uc791\uc131\ud558\uc138\uc694.',
-  reactTitle: '\ub9ac\uc561\ud2b8 \ud504\ub860\ud2b8\uc5d4\ub4dc',
-  apiTitle: '\ubb38\uc11c API',
-  storageTitle: '\ub9c8\ud06c\ub2e4\uc6b4 \uc800\uc7a5\uc18c',
-  reactContent:
-    '# \ub9ac\uc561\ud2b8 \ud504\ub860\ud2b8\uc5d4\ub4dc\n\n- React Flow\ub85c \ub9c8\uc778\ub4dc\ub9f5 \uce94\ubc84\uc2a4\ub97c \uadf8\ub9bd\ub2c8\ub2e4.\n- \uac01 \ub178\ub4dc\ub294 \ubcc4\ub3c4\uc758 Markdown \ubb38\uc11c\ub97c \uac00\ub9ac\ud0b5\ub2c8\ub2e4.\n- \ub178\ub4dc\ub97c \ud074\ub9ad\ud558\uba74 \ubb38\uc11c \ud3b8\uc9d1 \ubaa8\ub2ec\uc774 \uc5f4\ub9bd\ub2c8\ub2e4.',
-  apiContent:
-    '# \ubb38\uc11c API\n\n- \ub178\ub4dc\ub294 \uc704\uce58\uc640 \uc5f0\uacb0 \uc815\ubcf4\ub97c \uc800\uc7a5\ud569\ub2c8\ub2e4.\n- \ubb38\uc11c\ub294 Markdown \ubcf8\ubb38\uc744 \ud14d\uc2a4\ud2b8\ub85c \uc800\uc7a5\ud569\ub2c8\ub2e4.\n- MVP\uc5d0\uc11c\ub294 \ub450 \ub370\uc774\ud130\ub97c localStorage\uc5d0 \uc800\uc7a5\ud569\ub2c8\ub2e4.',
-  storageContent:
-    '# \ub9c8\ud06c\ub2e4\uc6b4 \uc800\uc7a5\uc18c\n\n\ubb38\uc11c \ubcf8\ubb38\uc740 \ub9c8\uc778\ub4dc\ub9f5 \ub178\ub4dc \ubc16\uc5d0 \ub530\ub85c \ub461\ub2c8\ub2e4. \ub098\uc911\uc5d0 \ub370\uc774\ud130\ubca0\uc774\uc2a4 TEXT \uceec\ub7fc\uc73c\ub85c \uc62e\uaca8\ub3c4 \uce94\ubc84\uc2a4 \ubaa8\ub378\uc740 \uadf8\ub300\ub85c \uc720\uc9c0\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.',
 }
 
 const legacyTitles: Record<string, string> = {
-  'React Frontend': text.reactTitle,
-  'Document API': text.apiTitle,
-  'Markdown Storage': text.storageTitle,
+  'React Frontend': '\ub9ac\uc561\ud2b8 \ud504\ub860\ud2b8\uc5d4\ub4dc',
+  'Document API': '\ubb38\uc11c API',
+  'Markdown Storage': '\ub9c8\ud06c\ub2e4\uc6b4 \uc800\uc7a5\uc18c',
 }
 
 const initialSnapshot: MindMapSnapshot = {
-  selectedDocumentId: 'doc-react',
+  selectedDocumentId: 'doc-default',
   nodes: [
     {
-      id: 'node-react',
+      id: 'node-default',
       type: 'mindMapNode',
-      position: { x: 80, y: 120 },
+      position: { x: 160, y: 140 },
       data: {
-        title: text.reactTitle,
-        documentId: 'doc-react',
-        status: 'ready',
-      },
-    },
-    {
-      id: 'node-api',
-      type: 'mindMapNode',
-      position: { x: 390, y: 80 },
-      data: {
-        title: text.apiTitle,
-        documentId: 'doc-api',
-        status: 'draft',
-      },
-    },
-    {
-      id: 'node-storage',
-      type: 'mindMapNode',
-      position: { x: 360, y: 270 },
-      data: {
-        title: text.storageTitle,
-        documentId: 'doc-storage',
-        status: 'draft',
+        title: `${text.newNode} 1`,
+        documentId: 'doc-default',
+        status: '',
       },
     },
   ],
-  edges: [
-    { id: 'edge-react-api', source: 'node-react', target: 'node-api' },
-    { id: 'edge-react-storage', source: 'node-react', target: 'node-storage' },
-  ],
+  edges: [],
   documents: [
     {
-      id: 'doc-react',
-      title: text.reactTitle,
-      content: text.reactContent,
-      updatedAt: now(),
-    },
-    {
-      id: 'doc-api',
-      title: text.apiTitle,
-      content: text.apiContent,
-      updatedAt: now(),
-    },
-    {
-      id: 'doc-storage',
-      title: text.storageTitle,
-      content: text.storageContent,
+      id: 'doc-default',
+      title: `${text.newNode} 1`,
+      content: `# ${text.newNode} 1\n\n${text.newNodeBody}`,
       updatedAt: now(),
     },
   ],
@@ -133,8 +89,14 @@ type MindMapState = MindMapSnapshot & {
   onEdgesChange: (changes: EdgeChange<MindMapFlowEdge>[]) => void
   onNodesChange: (changes: NodeChange<MindMapFlowNode>[]) => void
   pasteCopiedNodes: () => void
-  saveSnapshot: () => void
+  saveSnapshot: () => Promise<void>
   selectDocument: (documentId: DocumentId) => void
+  selectNodesInRect: (rect: {
+    maxX: number
+    maxY: number
+    minX: number
+    minY: number
+  }) => void
   setActiveOwner: (ownerId: string | null) => Promise<void>
   toggleAutoSave: () => void
   updateDocumentContent: (documentId: DocumentId, content: string) => void
@@ -166,7 +128,7 @@ function normalizeSnapshot(snapshot: MindMapSnapshot): MindMapSnapshot {
       data: {
         ...node.data,
         title: legacyTitles[node.data.title] ?? node.data.title,
-        status: typeof node.data.status === 'string' ? node.data.status : 'draft',
+        status: typeof node.data.status === 'string' ? node.data.status : '',
       },
     })),
     edges: snapshot.edges.map((edge) => ({
@@ -223,7 +185,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           type: 'mindMapNode',
           selected: true,
           position,
-          data: { title, documentId, status: 'draft' },
+          data: { title, documentId, status: '' },
         },
       ]
 
@@ -657,14 +619,17 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
     })
   },
 
-  saveSnapshot: () => {
+  saveSnapshot: async () => {
     const state = get()
-    saveMindMapSnapshot({
-      nodes: state.nodes,
-      edges: state.edges,
-      documents: state.documents,
-      selectedDocumentId: state.selectedDocumentId,
-    }, state.ownerId)
+    await saveMindMapSnapshot(
+      {
+        nodes: state.nodes,
+        edges: state.edges,
+        documents: state.documents,
+        selectedDocumentId: state.selectedDocumentId,
+      },
+      state.ownerId,
+    )
   },
 
   selectDocument: (documentId) => {
@@ -681,6 +646,33 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
       ),
       isDocumentModalOpen: true,
     }))
+  },
+
+  selectNodesInRect: (rect) => {
+    set((state) =>
+      withSelectedDocument({
+        nodes: state.nodes.map((node) => {
+          const width = node.measured?.width ?? node.width ?? 176
+          const height = node.measured?.height ?? node.height ?? 72
+          const nodeRect = {
+            maxX: node.position.x + width,
+            maxY: node.position.y + height,
+            minX: node.position.x,
+            minY: node.position.y,
+          }
+          const selected =
+            nodeRect.maxX >= rect.minX &&
+            nodeRect.minX <= rect.maxX &&
+            nodeRect.maxY >= rect.minY &&
+            nodeRect.minY <= rect.maxY
+
+          return { ...node, selected }
+        }),
+        edges: state.edges.map((edge) => ({ ...edge, selected: false })),
+        documents: state.documents,
+        selectedDocumentId: state.selectedDocumentId,
+      }),
+    )
   },
 
   setActiveOwner: async (ownerId) => {
@@ -707,37 +699,29 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
   updateDocumentContent: (documentId, content) => {
     set((state) =>
-      withSelectedDocument(
-        persist({
-          nodes: state.nodes,
-          edges: state.edges,
-            documents: state.documents.map((doc) =>
-            doc.id === documentId ? { ...doc, content, updatedAt: now() } : doc,
-          ),
-          selectedDocumentId: state.selectedDocumentId,
-        },
-        state.ownerId,
+      withSelectedDocument({
+        nodes: state.nodes,
+        edges: state.edges,
+        documents: state.documents.map((doc) =>
+          doc.id === documentId ? { ...doc, content, updatedAt: now() } : doc,
         ),
-      ),
+        selectedDocumentId: state.selectedDocumentId,
+      }),
     )
   },
 
   updateDocumentStatus: (documentId, status) => {
     set((state) =>
-      withSelectedDocument(
-        persist({
-          nodes: state.nodes.map((node) =>
-            node.data.documentId === documentId
-              ? { ...node, data: { ...node.data, status } }
-              : node,
-          ),
-          edges: state.edges,
-          documents: state.documents,
-          selectedDocumentId: state.selectedDocumentId,
-        },
-        state.ownerId,
+      withSelectedDocument({
+        nodes: state.nodes.map((node) =>
+          node.data.documentId === documentId
+            ? { ...node, data: { ...node.data, status } }
+            : node,
         ),
-      ),
+        edges: state.edges,
+        documents: state.documents,
+        selectedDocumentId: state.selectedDocumentId,
+      }),
     )
   },
 
@@ -752,16 +736,12 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
           : node,
       )
 
-      return withSelectedDocument(
-        persist({
-          nodes: nextNodes,
-          edges: state.edges,
-          documents: nextDocuments,
-          selectedDocumentId: state.selectedDocumentId,
-        },
-        state.ownerId,
-        ),
-      )
+      return withSelectedDocument({
+        nodes: nextNodes,
+        edges: state.edges,
+        documents: nextDocuments,
+        selectedDocumentId: state.selectedDocumentId,
+      })
     })
   },
 }))

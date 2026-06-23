@@ -39,7 +39,7 @@ export function DocumentModal({ theme }: DocumentModalProps) {
   const selectedNode = nodes.find(
     (node) => node.data.documentId === selectedDocument.id,
   )
-  const selectedStatus = selectedNode?.data.status ?? 'draft'
+  const selectedStatus = selectedNode?.data.status ?? ''
 
   return (
     <div
