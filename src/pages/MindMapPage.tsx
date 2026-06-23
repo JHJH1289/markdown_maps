@@ -11,6 +11,12 @@ import { useMindMapStore } from '../stores/mindmapStore'
 import type { ThemeMode } from '../types/mindmap'
 
 const THEME_STORAGE_KEY = 'markdown-maps:theme'
+const SAVE_MESSAGE_MS = 1800
+
+type SaveFeedback = {
+  tone: 'error' | 'success'
+  text: string
+}
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') {
@@ -25,11 +31,31 @@ function getInitialTheme(): ThemeMode {
 export function MindMapPage() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveFeedback, setSaveFeedback] = useState<SaveFeedback | null>(null)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const signOut = useAuthStore((state) => state.signOut)
   const autoArrangeNodes = useMindMapStore((state) => state.autoArrangeNodes)
   const { isReady, ownerEmail, saveSnapshot } = useWorkspaceSession()
   const nextTheme = theme === 'light' ? 'dark' : 'light'
+
+  const handleSave = async () => {
+    if (isSaving) {
+      return
+    }
+
+    setIsSaving(true)
+    setSaveFeedback(null)
+
+    try {
+      await saveSnapshot()
+      setSaveFeedback({ tone: 'success', text: 'Saved' })
+    } catch {
+      setSaveFeedback({ tone: 'error', text: 'Save failed' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -45,6 +71,18 @@ export function MindMapPage() {
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!saveFeedback) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSaveFeedback(null)
+    }, SAVE_MESSAGE_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [saveFeedback])
 
   if (!isReady) {
     return (
@@ -93,8 +131,13 @@ export function MindMapPage() {
               >
                 {theme === 'light' ? 'Dark' : 'Light'}
               </button>
-              <button className="save-button" onClick={saveSnapshot} type="button">
-                Save
+              <button
+                className="save-button"
+                disabled={isSaving}
+                onClick={() => void handleSave()}
+                type="button"
+              >
+                {isSaving ? 'Saving' : 'Save'}
               </button>
               <button
                 className="secondary-button"
@@ -110,6 +153,11 @@ export function MindMapPage() {
             <TitleSearch />
           </div>
         </Panel>
+        {saveFeedback && (
+          <Panel className={`save-feedback save-feedback-${saveFeedback.tone}`} position="top-center">
+            {saveFeedback.text}
+          </Panel>
+        )}
         <Panel className="breadcrumb-panel" position="bottom-center">
           <MapBreadcrumbs />
         </Panel>

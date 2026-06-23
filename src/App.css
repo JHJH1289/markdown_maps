@@ -108,6 +108,31 @@
   backdrop-filter: blur(12px);
 }
 
+.save-feedback {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: 0 14px 34px var(--panel-shadow);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 800;
+  backdrop-filter: blur(12px);
+}
+
+.save-feedback-success {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  color: var(--accent);
+}
+
+.save-feedback-error {
+  border-color: #cf5d5d;
+  color: #cf5d5d;
+}
+
 .map-breadcrumbs {
   display: flex;
   max-width: 100%;
